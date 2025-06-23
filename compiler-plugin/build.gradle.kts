@@ -20,12 +20,12 @@ allprojects {
 }
 
 group = "io.github.yairm210"
-version = "0.0.5-SNAPSHOT"
+version = "0.0.6"
 
 mavenPublishing {
-    coordinates("io.github.yairm210", "purity-compiler-plugin", "0.0.5")
+    coordinates(group.toString(), "purity-compiler-plugin", version.toString())
     publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL)
-    signAllPublications()
+    signAllPublications() // Comment out for local publishing if you don't have a GPG key set up
 
     pom {
         name = "Purity Compiler Plugin"

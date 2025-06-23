@@ -1,17 +1,13 @@
 import org.gradle.kotlin.dsl.libs
 
 buildscript {
-
     repositories {
         mavenLocal()
         google()
         mavenCentral()
     }
-
-    dependencies {
-        classpath("com.vanniktech:gradle-maven-publish-plugin:0.32.0")
-    }
 }
+
 plugins {
     id("org.jetbrains.kotlin.multiplatform") version libs.versions.kotlin apply false
 }
