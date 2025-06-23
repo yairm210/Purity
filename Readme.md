@@ -4,8 +4,17 @@ A Kotlin Compiler Plugin that determines Pure and Readonly functions. Under cons
 
 ## Usage
 
+Install the plugin by adding the following to your `build.gradle.kts`:
+
+```kotlin
+plugins {
+    id("io.github.yairm210.purity-plugin") version "0.0.5"
+}
+```
+
 Mark pure functions using `@Contract(pure = true)`, and readonly functions using `@Contract("readonly")`.
 
+## Development
 
 To test the plugin on /lib, run `./gradlew :lib:clean :lib:build` - the plugin is only active when the build cache is changed
 

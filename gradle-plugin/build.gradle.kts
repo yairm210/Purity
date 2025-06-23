@@ -3,11 +3,8 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 plugins {
     kotlin("jvm") version("2.0.0")
     kotlin("kapt") version("2.0.0")
-//    id("java-gradle-plugin")
     id("com.gradle.plugin-publish") version "1.2.1"
-//    `maven-publish`
 }
-apply(plugin = "kotlin-kapt") // todo not sure if required, test without
 
 group = "io.github.yairm210"
 version = "0.0.5"
