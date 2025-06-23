@@ -18,39 +18,55 @@ Mark pure functions using `@Contract(pure = true)`, and readonly functions using
 
 To test the plugin on /lib, run `./gradlew :lib:clean :lib:build` - the plugin is only active when the build cache is changed
 
-To publish the compiler plugin locally:
-- Update version in compiler plugin - `compiler-plugin/build.gradle.kts` 
-- Update version in gradle plugin - `PurityGradlePlugin.kt`
+To test on other projects, first increment the version (see below) - otherwise the plugin from the gradle plugin repository will be used.
+
+To publish the *compiler plugin* locally:
+- Comment out the `signAllPublications()` line in `compiler-plugin/build.gradle.kts` if you don't have the signing keys set up
 - `./gradlew :compiler-plugin:publishToMavenLocal`
+- It should now be available in `~/.m2/repository/io/github/yairm210/compiler-compiler-plugin/<version>`
 
 To publish the gradle plugin locally:
-- Update version in `gradle-plugin/build.gradle.kts`
 - `./gradlew :gradle-plugin:build`
+- It should now be available in `~/.m2/repository/io/github/yairm210/gradle-plugin/<version>`
 
-To publish the compiler plugin to Maven Central, with the correct env variables in place, run `./gradlew compiler-plugin:publishAndReleaseToMavenCentral --no-configuration-cache`
+To use the local plugin in another local project, add to `build.gradle.kts`:
 
-To publish the gradle plugin to the Gradle Plugin Repository, with the correct env variables in place, run `./gradlew gradle-plugin:publishPlugins`
+```kotlin
+plugins {
+    id("io.github.yairm210.purity-plugin") version "<version>" // Require the gradle plugin
+}
+repositories {
+    mavenLocal() // To get the compiler plugin locally
+}
+```
 
-In your other local project, add to settings.gradle.kts:
+And add to `settings.gradle.kts`:
 
 ```kotlin
 pluginManagement {
     repositories {
-        mavenLocal()
-        gradlePluginPortal()
+        mavenLocal() // To get the compiler plugin locally
+        gradlePluginPortal() // So other plugins can be resolved
     }
 }
 ```
 
-And add the following to your build.gradle.kts:
+## Versioning
 
-```kotlin
-plugins {
-    id("compiler.gradleplugin.test") version "1.0.4" // Use the version published to Maven Local
-}
-```
+Gradle plugins used in other projects must be included in settings.gradle.kts as 'includeBuild', so they'll be available as a plugin.
 
-`
+This unfortunately precludes them from depending on buildSrc for a single source of truth for the version. 
+Thus, the version must be updated in multiple places:
+
+- Update version in compiler plugin - `compiler-plugin/build.gradle.kts`
+- Update version in gradle plugin - `PurityGradlePlugin.kt`
+- Update version in `gradle-plugin/build.gradle.kts`
+
+## Publishing
+
+To publish the compiler plugin to Maven Central, with the correct env variables in place, run `./gradlew compiler-plugin:publishAndReleaseToMavenCentral --no-configuration-cache`
+
+To publish the gradle plugin to the Gradle Plugin Repository, with the correct env variables in place, run `./gradlew gradle-plugin:publishPlugins`
 
 ### Project Structure
 
