@@ -64,7 +64,23 @@ Thus, the version must be updated in multiple places:
 
 ## Publishing
 
-To publish the compiler plugin to Maven Central, with the correct env variables in place, run `./gradlew compiler-plugin:publishAndReleaseToMavenCentral --no-configuration-cache`
+### Publishing the compiler plugin to Maven Central
+
+You must have the following environment variables set up:
+
+- ORG_GRADLE_PROJECT_mavenCentralPassword
+- ORG_GRADLE_PROJECT_mavenCentralUsername
+- ORG_GRADLE_PROJECT_signingInMemoryKey
+- ORG_GRADLE_PROJECT_signingInMemoryKeyPassword
+
+With the correct env variables in place, run `./gradlew compiler-plugin:publishAndReleaseToMavenCentral --no-configuration-cache`
+
+### Publishing the gradle plugin to the Gradle Plugin Repository
+
+You must have the following environment variables set up:
+
+- GRADLE_PUBLISH_KEY
+- GRADLE_PUBLISH_SECRET
 
 To publish the gradle plugin to the Gradle Plugin Repository, with the correct env variables in place, run `./gradlew gradle-plugin:publishPlugins`
 

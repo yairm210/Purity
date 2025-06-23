@@ -69,6 +69,6 @@ tasks.register("sourcesJar", Jar::class) {
     dependsOn(tasks.classes)
 }
 
-tasks.build {
+tasks.build { // makes every build also publish locally
     dependsOn("publishToMavenLocal")
 }
