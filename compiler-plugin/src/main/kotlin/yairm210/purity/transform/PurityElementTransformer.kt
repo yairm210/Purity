@@ -30,6 +30,7 @@ val wellKnownReadonlyClasses = setOf(
     "kotlin.sequences.Sequence",
     "kotlin.text.Regex",
     "kotlin.text.MatchResult",
+    "kotlin.sequences.Sequence"
 )
 
 val wellKnownPureClasses = setOf(
@@ -46,6 +47,12 @@ val wellKnownPureClasses = setOf(
     "kotlin.ranges.CharRange",
     "kotlin.ranges.FloatRange",
     "kotlin.ranges.DoubleRange",
+)
+
+
+
+val wellKnownPureFunctions = setOf(
+    "kotlin.sequences.sequenceOf",
 )
 
 /** Classes that hold state internally.
@@ -66,12 +73,20 @@ fun classMatches(function: IrFunction, wellKnownClasses: Set<String>): Boolean {
     return parentClassIdentifier in wellKnownClasses
 }
 
+fun functionMatches(function: IrFunction, wellKnownFunctions: Set<String>): Boolean {
+    val functionIdentifier = function.fqNameForIrSerialization.asString()
+    if (functionIdentifier in wellKnownFunctions) return true
+    throw Exception("Function $functionIdentifier FQ ${function.fqNameForIrSerialization} not found in wellKnownFunctions: $wellKnownFunctions")
+}
+
 fun isMarkedAsPure(function: IrFunction): Boolean {
     // Marked by @Contract(pure = true)
     val pure = function.getAnnotationArgumentValue<Boolean>(FqName("org.jetbrains.annotations.Contract"), "pure")
     if (pure == true) return true
 
     if (classMatches(function, wellKnownPureClasses)) return true
+    
+    if (functionMatches(function, wellKnownPureFunctions)) return true
 
     // Simple values like int + int -> plus(int, int), are marked thus
     val constEvaluation = function.getAnnotation(FqName("kotlin.internal.IntrinsicConstEvaluation"))
