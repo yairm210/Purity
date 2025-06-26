@@ -71,6 +71,13 @@ val wellKnownInternalStateClasses = setOf(
     "kotlin.collections.LinkedHashSet",
     "kotlin.text.StringBuilder",
     "java.lang.StringBuilder",
+    "java.util.EnumMap",
+    "java.util.HashMap",
+    "java.util.LinkedHashMap",
+    "java.util.ArrayList",
+    "java.util.HashSet",
+    "java.util.LinkedHashSet",
+    "java.util.concurrent.ConcurrentHashMap",
 )
     
 fun classMatches(function: IrFunction, wellKnownClasses: Set<String>): Boolean {
