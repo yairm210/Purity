@@ -15,10 +15,17 @@ enum class MyEnum {
 }
 
 @Contract(pure = true)
-fun javaCalls(): String {
+fun localStateNonChaining(): String {
     val stringBuilder = StringBuilder()
     stringBuilder.append("Hello, ")
-    return stringBuilder.append("World!").toString()
+    stringBuilder.append("World!")
+    return stringBuilder.toString()
+}
+
+@Contract("readonly")
+fun sequenceChaining(): String {
+    return sequenceOf("Hello, ", "World!")
+        .joinToString(separator = "")
 }
 
 //
