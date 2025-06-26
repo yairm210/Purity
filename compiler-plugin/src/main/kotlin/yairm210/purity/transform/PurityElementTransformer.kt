@@ -53,6 +53,11 @@ val wellKnownPureClasses = setOf(
 
 val wellKnownPureFunctions = setOf(
     "kotlin.sequences.sequenceOf",
+    "kotlin.sequences.joinToString",
+)
+
+val wellKnownPureFunctionsPrefixes = listOf(
+    "kotlin.sequences."
 )
 
 /** Classes that hold state internally.
@@ -73,10 +78,12 @@ fun classMatches(function: IrFunction, wellKnownClasses: Set<String>): Boolean {
     return parentClassIdentifier in wellKnownClasses
 }
 
-fun functionMatches(function: IrFunction, wellKnownFunctions: Set<String>): Boolean {
+fun functionMatches(function: IrFunction, wellKnownFunctions: Set<String>,
+                    wellKnownPureFunctionsPrefixes: List<String>): Boolean {
     val functionIdentifier = function.fqNameForIrSerialization.asString()
     if (functionIdentifier in wellKnownFunctions) return true
-    throw Exception("Function $functionIdentifier FQ ${function.fqNameForIrSerialization} not found in wellKnownFunctions: $wellKnownFunctions")
+    if (wellKnownPureFunctionsPrefixes.any { functionIdentifier.startsWith(it) }) return true
+    return false
 }
 
 fun isMarkedAsPure(function: IrFunction): Boolean {
@@ -86,7 +93,7 @@ fun isMarkedAsPure(function: IrFunction): Boolean {
 
     if (classMatches(function, wellKnownPureClasses)) return true
     
-    if (functionMatches(function, wellKnownPureFunctions)) return true
+    if (functionMatches(function, wellKnownPureFunctions, wellKnownPureFunctionsPrefixes)) return true
 
     // Simple values like int + int -> plus(int, int), are marked thus
     val constEvaluation = function.getAnnotation(FqName("kotlin.internal.IntrinsicConstEvaluation"))
