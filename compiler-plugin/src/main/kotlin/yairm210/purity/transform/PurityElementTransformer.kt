@@ -219,7 +219,7 @@ class CheckFunctionColoringVisitor(
             messageCollector.report(
                 CompilerMessageSeverity.WARNING,
                 "$fileLocation Function \"${function.name}\" is marked as $declaredFunctionColoring " +
-                        "but calls non-$declaredFunctionColoring function \"${expression.symbol.owner.name}\""
+                        "but calls non-$declaredFunctionColoring function \"${expression.symbol.owner.fqNameForIrSerialization}\""
             )
         }
         
