@@ -15,16 +15,14 @@ class PurityComponentRegistrar : CompilerPluginRegistrar() {
         get() = true
 
     override fun ExtensionStorage.registerExtensions(configuration: CompilerConfiguration) {
-        if (configuration[KEY_ENABLED] == false) {
-            return
-        }
+        if (configuration[KEY_ENABLED] == false) return
 
         val messageCollector = configuration.get(CLIConfigurationKeys.MESSAGE_COLLECTOR_KEY, MessageCollector.NONE)
 
         val logging = true
         
         IrGenerationExtension.registerExtension(
-            PurityIrGenerationExtension(DebugLogger(logging, messageCollector), configuration[KEY_PURE_FUNCTION_NAMES] ?: listOf())
+            PurityIrGenerationExtension(DebugLogger(logging, messageCollector), configuration[KEY_WELL_KNOWN_PURE_FUNCTIONS] ?: setOf())
         )
     }
 }

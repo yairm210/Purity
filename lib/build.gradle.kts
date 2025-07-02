@@ -1,4 +1,4 @@
-import yairm210.purity.TestCompilerExtension
+import yairm210.purity.PurityConfiguration
 
 plugins {
     id("org.jetbrains.kotlin.multiplatform") version libs.versions.kotlin
@@ -6,8 +6,9 @@ plugins {
 }
 
 
-configure<TestCompilerExtension> {
+configure<PurityConfiguration> {
     enabled = true
+    wellKnownPureFunctions = setOf("hi","bob")
 }
 
 
