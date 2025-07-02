@@ -52,12 +52,14 @@ val wellKnownPureClasses = setOf(
 
 
 val wellKnownPureFunctions = setOf(
-    "kotlin.sequences.sequenceOf",
-    "kotlin.sequences.joinToString",
+    "java.util.EnumMap.get",
+    "java.util.HashMap.get",
+    "java.util.LinkedHashMap.get",
 )
 
 val wellKnownPureFunctionsPrefixes = listOf(
-    "kotlin.sequences."
+    "kotlin.sequences.",
+    "kotlin.text."
 )
 
 /** Classes that hold state internally.
@@ -85,22 +87,20 @@ fun classMatches(function: IrFunction, wellKnownClasses: Set<String>): Boolean {
     return parentClassIdentifier in wellKnownClasses
 }
 
-fun functionMatches(function: IrFunction, wellKnownFunctions: Set<String>,
-                    wellKnownPureFunctionsPrefixes: List<String>): Boolean {
-    val functionIdentifier = function.fqNameForIrSerialization.asString()
-    if (functionIdentifier in wellKnownFunctions) return true
-    if (wellKnownPureFunctionsPrefixes.any { functionIdentifier.startsWith(it) }) return true
-    return false
-}
 
-fun isMarkedAsPure(function: IrFunction): Boolean {
+fun isMarkedAsPure(function: IrFunction, wellKnownPureFunctionsFromUser: Set<String>): Boolean {
     // Marked by @Contract(pure = true)
     val pure = function.getAnnotationArgumentValue<Boolean>(FqName("org.jetbrains.annotations.Contract"), "pure")
     if (pure == true) return true
 
     if (classMatches(function, wellKnownPureClasses)) return true
     
-    if (functionMatches(function, wellKnownPureFunctions, wellKnownPureFunctionsPrefixes)) return true
+    val fullyQualifiedFunctionName = function.fqNameForIrSerialization.asString()
+
+    if (fullyQualifiedFunctionName in wellKnownPureFunctions) return true
+    if (fullyQualifiedFunctionName in wellKnownPureFunctionsFromUser) return true
+    if (wellKnownPureFunctionsPrefixes.any { fullyQualifiedFunctionName.startsWith(it) }) return true
+    
 
     // Simple values like int + int -> plus(int, int), are marked thus
     val constEvaluation = function.getAnnotation(FqName("kotlin.internal.IntrinsicConstEvaluation"))
@@ -142,7 +142,7 @@ class CheckFunctionColoringVisitor(
     private val function: IrFunction,
     private val declaredFunctionColoring: FunctionColoring,
     private val messageCollector: MessageCollector,
-    private val pureFunctionNames: Set<String>,
+    private val wellKnownPureFunctionsFromUser: Set<String>,
     ) : IrElementVisitor<Unit, Unit> { // Returns whether this is an acceptable X function
     var isReadonly = true
     var isPure = true
@@ -203,7 +203,7 @@ class CheckFunctionColoringVisitor(
                 (expression.dispatchReceiver as IrGetValue).symbol.owner.parent == function
         
         val calledFunctionColoring =  when {
-            isMarkedAsPure(calledFunction) 
+            isMarkedAsPure(calledFunction, wellKnownPureFunctionsFromUser) 
                     || (classMatches(calledFunction, wellKnownInternalStateClasses) && callerIsDeclaredInOurFunction())
                 -> FunctionColoring.Pure
             isReadonly(calledFunction) -> FunctionColoring.Readonly
@@ -235,7 +235,7 @@ class CheckFunctionColoringVisitor(
 internal class PurityElementTransformer(
     private val pluginContext: IrPluginContext,
     private val debugLogger: DebugLogger,
-    private val pureFunctionNames: List<String>
+    private val wellKnownPureFunctionsFromUser: Set<String>
 ) : IrElementTransformerVoidWithContext() {
     
     // These are created behind the scenes for every class, don't warn for them
@@ -271,14 +271,14 @@ internal class PurityElementTransformer(
         if (declaration.body == null) return super.visitSimpleFunction(declaration)
         
         val functionDeclaredColoring = when {
-            isMarkedAsPure(declaration) -> FunctionColoring.Pure
+            isMarkedAsPure(declaration, wellKnownPureFunctionsFromUser) -> FunctionColoring.Pure
             isReadonly(declaration) -> FunctionColoring.Readonly
             else -> FunctionColoring.None
         }
         val messageCollector = if (functionDeclaredColoring == FunctionColoring.None) MessageCollector.NONE 
         else debugLogger.messageCollector
         
-        val visitor = CheckFunctionColoringVisitor(declaration, functionDeclaredColoring, messageCollector, pureFunctionNames.toSet())
+        val visitor = CheckFunctionColoringVisitor(declaration, functionDeclaredColoring, messageCollector, wellKnownPureFunctionsFromUser.toSet())
         declaration.accept(visitor, Unit)
         
         val actualColoring = visitor.actualFunctionColoring()

@@ -7,8 +7,9 @@ import org.jetbrains.kotlin.gradle.plugin.KotlinCompilerPluginSupportPlugin
 import org.jetbrains.kotlin.gradle.plugin.SubpluginArtifact
 import org.jetbrains.kotlin.gradle.plugin.SubpluginOption
 
-open class TestCompilerExtension {
+open class PurityConfiguration {
     var enabled: Boolean = true
+    var wellKnownPureFunctions = setOf<String>()
 }
 
 @Suppress("unused")
@@ -20,25 +21,29 @@ class PurityGradlePlugin : KotlinCompilerPluginSupportPlugin {
         const val VERSION_NUMBER = "0.0.6"
     }
 
-    private var gradleExtension : TestCompilerExtension = TestCompilerExtension()
+    private var gradleExtension : PurityConfiguration = PurityConfiguration()
     override fun applyToCompilation(kotlinCompilation: KotlinCompilation<*>): Provider<List<SubpluginOption>> {
-        gradleExtension = kotlinCompilation.target.project.extensions.findByType(TestCompilerExtension::class.java) ?: TestCompilerExtension()
+        gradleExtension = kotlinCompilation.target.project.extensions.findByType(PurityConfiguration::class.java) ?: PurityConfiguration()
 
         return kotlinCompilation.target.project.provider {
-            val options = mutableListOf(SubpluginOption("enabled", gradleExtension.enabled.toString()))
+            val options = mutableListOf(
+                // TODO: Find a way to sync the key names between projects - other side is in PurityCommandLineProcessor
+                SubpluginOption("enabled", gradleExtension.enabled.toString()),
+                SubpluginOption("wellKnownPureFunctions", gradleExtension.wellKnownPureFunctions.joinToString("_"))
+            )
             options
         }
     }
 
     override fun apply(target: Project) {
         target.extensions.create(
-            "helloWorld",
-            TestCompilerExtension::class.java
+            "purity",
+            PurityConfiguration::class.java
         )
         super.apply(target)
     }
 
-    override fun getCompilerPluginId(): String = "helloWorldPlugin"
+    override fun getCompilerPluginId(): String = "purityPlugin"
 
     override fun isApplicable(kotlinCompilation: KotlinCompilation<*>): Boolean {
         return true
