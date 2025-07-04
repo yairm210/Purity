@@ -21,15 +21,15 @@ jobs:
     - name: Build with Gradle
       run: ./gradlew clean build
       
-    - name: Ensure tag is equal to versions.properties
+    - name: Ensure tag is equal to all version strings
       run: |
         TAG=$(echo $GITHUB_REF | sed 's/refs\/tags\///')
         
         # In the files, the line looks like 'version = "1.0.0"'
         COMPILER_PLUGIN_VERSION=$(grep 'version = ' compiler-plugin/build.gradle.kts | cut -d'"' -f2)
-        if [ "$TAG" != "$VERSION" ]; then
+        if [ "$TAG" != "COMPILER_PLUGIN_VERSION" ]; then
           echo "Tag $TAG does not match compiler plugin version: $VERSION"
-        ]
+          exit 1
         fi
         
         GRADLE_PLUGIN_VERSION=$(grep 'version = ' gradle-plugin/build.gradle.kts | cut -d'"' -f2)
@@ -39,7 +39,7 @@ jobs:
         fi
         
         GRADLE_PLUGIN_VERSION_OF_COMPILER_PLUGIN=$(grep 'VERSION_NUMBER = ' gradle-plugin/src/main/kotlin/yairm210/purity/PurityGradlePlugin.kt | cut -d'"' -f2)
-        if [ "$GRADLE_PLUGIN_VERSION_OF_COMPILER_PLUGIN" != "$COMPILER_PLUGIN_VERSION" ]; then
+        if [ "$TAG" != "$GRADLE_PLUGIN_VERSION_OF_COMPILER_PLUGIN" ]; then
           echo "Tag $TAG does not match Gradle plugin version of the compiler plugin: $GRADLE_PLUGIN_VERSION_OF_COMPILER_PLUGIN"
           exit 1
         fi
