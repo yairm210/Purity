@@ -27,8 +27,8 @@ jobs:
         
         # In the files, the line looks like 'version = "1.0.0"'
         COMPILER_PLUGIN_VERSION=$(grep 'version = ' compiler-plugin/build.gradle.kts | cut -d'"' -f2)
-        if [ "$TAG" != "COMPILER_PLUGIN_VERSION" ]; then
-          echo "Tag $TAG does not match compiler plugin version: $VERSION"
+        if [ "$TAG" != "$COMPILER_PLUGIN_VERSION" ]; then
+          echo "Tag $TAG does not match compiler plugin version: $COMPILER_PLUGIN_VERSION"
           exit 1
         fi
         
