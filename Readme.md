@@ -70,7 +70,8 @@ You must have the following environment variables set up:
 
 - ORG_GRADLE_PROJECT_mavenCentralPassword
 - ORG_GRADLE_PROJECT_mavenCentralUsername
-- ORG_GRADLE_PROJECT_signingInMemoryKey
+- ORG_GRADLE_PROJECT_signingInMemoryKey - can be retrieved with `gpg --export-secret-keys --armor`
+- ORG_GRADLE_PROJECT_signingInMemoryKeyPassword
 
 With the correct env variables in place, run `./gradlew compiler-plugin:publishAndReleaseToMavenCentral --no-configuration-cache`
 
