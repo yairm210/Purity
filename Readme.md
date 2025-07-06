@@ -65,46 +65,23 @@ pluginManagement {
     }
 }
 ```
-
-## Versioning
-
-Gradle plugins used in other projects must be included in settings.gradle.kts as 'includeBuild', so they'll be available as a plugin.
-
-This unfortunately precludes them from depending on buildSrc for a single source of truth for the version. 
-Thus, the version must be updated in multiple places:
-
-- Update version in compiler plugin - `compiler-plugin/build.gradle.kts`
-- Update version in gradle plugin - `PurityGradlePlugin.kt`
-- Update version in `gradle-plugin/build.gradle.kts`
-
-## Publishing
-
-### Publishing the compiler plugin to Maven Central
-
-You must have the following environment variables set up:
-
-- ORG_GRADLE_PROJECT_mavenCentralPassword
-- ORG_GRADLE_PROJECT_mavenCentralUsername
-- ORG_GRADLE_PROJECT_signingInMemoryKey - can be retrieved with `gpg --export-secret-keys --armor`
-- ORG_GRADLE_PROJECT_signingInMemoryKeyPassword
-
-With the correct env variables in place, run `./gradlew compiler-plugin:publishAndReleaseToMavenCentral --no-configuration-cache`
-
-### Publishing the gradle plugin to the Gradle Plugin Repository
-
-You must have the following environment variables set up:
-
-- GRADLE_PUBLISH_KEY
-- GRADLE_PUBLISH_SECRET
-
-To publish the gradle plugin to the Gradle Plugin Repository, with the correct env variables in place, run `./gradlew gradle-plugin:publishPlugins`
-
 ### Project Structure
 
 - <kbd>lib</kbd> - A Kotlin Multiplatform project which applies a gradle plugin (compiler.plugin.helloworld) which triggers the compiler plugin.
 - <kbd>compiler-plugin</kbd> - This module contains the Kotlin Compiler Plugin
 - <kbd>gradle-plugin</kbd> - This module contains the gradle plugin which trigger the compiler plugin
 
+
+### Versioning
+
+Gradle plugins used in other projects must be included in settings.gradle.kts as 'includeBuild', so they'll be available as a plugin.
+
+This unfortunately precludes them from depending on buildSrc for a single source of truth for the version.
+Thus, the version must be updated in multiple places:
+
+- Update version in compiler plugin - `compiler-plugin/build.gradle.kts`
+- Update version in gradle plugin - `PurityGradlePlugin.kt`
+- Update version in `gradle-plugin/build.gradle.kts`
 
 ## Acknowledgments
 
