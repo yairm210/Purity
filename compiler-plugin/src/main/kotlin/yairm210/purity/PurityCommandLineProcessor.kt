@@ -33,7 +33,8 @@ class PurityCommandLineProcessor : CommandLineProcessor {
         configuration: CompilerConfiguration
     ) = when (option.optionName) {
         enabled -> configuration.put(KEY_ENABLED, value.toBoolean())
-        wellKnownPureFunctions -> configuration.put(KEY_WELL_KNOWN_PURE_FUNCTIONS, value.split("_").map { it.trim() }.toSet())
+        wellKnownPureFunctions -> configuration.put(KEY_WELL_KNOWN_PURE_FUNCTIONS, value.split("_")
+            .map { it.trim() }.toSet())
         else -> throw IllegalArgumentException("Unknown option: ${option.optionName}")
     }
 }
