@@ -14,6 +14,21 @@ plugins {
 
 Mark pure functions using `@Contract(pure = true)`, and readonly functions using `@Contract("readonly")`.
 
+### Suppressing validity checks
+
+Every dependency tree has leaves at the bottom. 
+Often, you want to mark your lowest functions as pure or readonly, and have the compiler only check the from it and up.
+You can do this my marking the function with `@Suppress("yairm210.purity")`, like so:
+
+```kotlin
+var external = 3
+// reads an external variable, but will not throw an error
+@Contract(pure = true) @Suppress("yairm210.purity")
+fun actsAsPure(): Int {
+    return external
+}
+```
+
 ## Development
 
 To test the plugin on /lib, run `./gradlew :lib:clean :lib:build` - the plugin is only active when the build cache is changed
