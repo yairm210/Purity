@@ -1,3 +1,5 @@
+@file:OptIn(UnsafeDuringIrConstructionAPI::class)
+
 package yairm210.purity.transform
 
 import yairm210.purity.DebugLogger
@@ -128,6 +130,7 @@ fun isReadonly(function: IrFunction): Boolean {
 /** For convenience - single-declaration functions like "fun getX() = x" are readonly */
 private fun isSingleStatementVarReturn(function: IrFunction): Boolean {
     val body = function.body ?: return false
+    if (body is IrSyntheticBody) return false // Not sure what this IS, but it has no statements
     if (body.statements.size != 1) return false
     val statement = body.statements[0]
     if (statement !is IrReturn) return false
@@ -183,7 +186,6 @@ class CheckFunctionColoringVisitor(
     }
 
     // Iterate over IR tree and warn on each var set where the var is not created within this function
-    @OptIn(UnsafeDuringIrConstructionAPI::class)
     override fun visitSetValue(expression: IrSetValue, data: Unit) {
         // Not sure if we can assume owner is set at this point :think:
         val varValueDeclaration: IrValueDeclaration = expression.symbol.owner
@@ -202,7 +204,6 @@ class CheckFunctionColoringVisitor(
         super.visitSetValue(expression, data)
     }
 
-    @OptIn(UnsafeDuringIrConstructionAPI::class)
     override fun visitGetValue(expression: IrGetValue, data: Unit) {
         val varValueDeclaration: IrValueDeclaration = expression.symbol.owner
         
@@ -222,7 +223,6 @@ class CheckFunctionColoringVisitor(
         super.visitGetValue(expression, data)
     }
     
-    @OptIn(UnsafeDuringIrConstructionAPI::class)
     override fun visitCall(expression: IrCall, data: Unit) {
         // Only accept calls to functions marked as pure or readonly
         val calledFunction = expression.symbol.owner
