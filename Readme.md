@@ -8,7 +8,7 @@ Install the plugin by adding the following to your `build.gradle.kts`:
 
 ```kotlin
 plugins {
-    id("io.github.yairm210.purity-plugin") version "0.0.9"
+    id("io.github.yairm210.purity-plugin") version "0.0.10"
 }
 ```
 
