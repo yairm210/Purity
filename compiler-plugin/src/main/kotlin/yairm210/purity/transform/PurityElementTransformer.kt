@@ -3,6 +3,7 @@ package yairm210.purity.transform
 import yairm210.purity.DebugLogger
 import org.jetbrains.kotlin.backend.common.IrElementTransformerVoidWithContext
 import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
+import org.jetbrains.kotlin.cli.common.messages.CompilerMessageLocation
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
 import org.jetbrains.kotlin.ir.IrElement
@@ -125,18 +126,23 @@ fun isReadonly(function: IrFunction): Boolean {
     return false
 }
 
-
-private fun userDisplayFileLocation(function: IrFunction, expression: IrElement): String {
-    val location = function.fileEntry.getLineAndColumnNumbers(expression.startOffset)
-    // Location we get is 0-indexed but we need the 1-indexed line and column for click-to-get-to-location
-    val fileLocation = "file://${function.fileEntry.name}:${location.line + 1}:${location.column + 1}"
-    return fileLocation
-}
-
 enum class FunctionColoring{
     None,
     Readonly,
     Pure
+}
+
+fun getLocationForExpression(
+    function: IrFunction,
+    expression: IrElement
+): CompilerMessageLocation {
+    val lineAndColumn = function.fileEntry.getLineAndColumnNumbers(expression.startOffset)
+    return CompilerMessageLocation.create(
+        path = function.fileEntry.name,
+        line = lineAndColumn.line + 1, // Convert to 1-indexed
+        column = lineAndColumn.column + 1, // Convert to 1-indexed
+        lineContent = null
+    )!!
 }
 
 /** Warns every time a var is set a value, or an unpure function is called.
@@ -166,13 +172,13 @@ class CheckFunctionColoringVisitor(
         
         // If the variable is created in this function that's ok
         if (varValueDeclaration is IrVariable && varValueDeclaration.isVar && varValueDeclaration.parent != function) {
-            val fileLocation = userDisplayFileLocation(function, expression)
             isReadonly = false
             isPure = false
 
             messageCollector.report(
-                CompilerMessageSeverity.WARNING,
-                "$fileLocation Function \"${function.name}\" is marked as $declaredFunctionColoring but sets variable \"${varValueDeclaration.name}\""
+                CompilerMessageSeverity.ERROR,
+                "Function \"${function.name}\" is marked as $declaredFunctionColoring but sets variable \"${varValueDeclaration.name}\"",
+                location = getLocationForExpression(function, expression)
             )
         }
         super.visitSetValue(expression, data)
@@ -184,13 +190,14 @@ class CheckFunctionColoringVisitor(
         
         // If the variable is created in this function that's ok
         if (varValueDeclaration is IrVariable && varValueDeclaration.isVar && varValueDeclaration.parent != function) {
-            val fileLocation = userDisplayFileLocation(function, expression)
             isPure = false
 
             if (declaredFunctionColoring == FunctionColoring.Pure) {
+                val lineAndColumn = function.fileEntry.getLineAndColumnNumbers(expression.startOffset)
                 messageCollector.report(
-                    CompilerMessageSeverity.WARNING,
-                    "$fileLocation Function \"${function.name}\" is marked as $declaredFunctionColoring but gets variable \"${varValueDeclaration.name}\""
+                    CompilerMessageSeverity.ERROR,
+                    "Function \"${function.name}\" is marked as $declaredFunctionColoring but gets variable \"${varValueDeclaration.name}\"",
+                    location = getLocationForExpression(function, expression) 
                 )
             }
         }
@@ -218,11 +225,11 @@ class CheckFunctionColoringVisitor(
         if (calledFunctionColoring < FunctionColoring.Readonly) isReadonly = false
         
         if (declaredFunctionColoring > calledFunctionColoring) {
-            val fileLocation = userDisplayFileLocation(function, expression)
             messageCollector.report(
-                CompilerMessageSeverity.WARNING,
-                "$fileLocation Function \"${function.name}\" is marked as $declaredFunctionColoring " +
-                        "but calls non-$declaredFunctionColoring function \"${expression.symbol.owner.fqNameForIrSerialization}\""
+                CompilerMessageSeverity.ERROR,
+                "Function \"${function.name}\" is marked as $declaredFunctionColoring " +
+                        "but calls non-$declaredFunctionColoring function \"${expression.symbol.owner.fqNameForIrSerialization}\"",
+                location = getLocationForExpression(function, expression)
             )
         }
         
@@ -310,8 +317,6 @@ internal class PurityElementTransformer(
                 return super.visitSimpleFunction(declaration)
             }
             
-            val fileLocation = userDisplayFileLocation(declaration, declaration)
-            
             // if equal, no message; If less that declared, we already warn for each individual violation
             if (functionDeclaredColoring < actualColoring) {
                 val message = when (actualColoring) {
@@ -320,7 +325,8 @@ internal class PurityElementTransformer(
                     else -> throw Exception("Unexpected function coloring: $actualColoring")
                 }
 
-                debugLogger.messageCollector.report(CompilerMessageSeverity.WARNING, "$fileLocation $message")
+                debugLogger.messageCollector.report(CompilerMessageSeverity.WARNING, message,
+                    location = getLocationForExpression(declaration, declaration))
             }
         }
         
