@@ -7,13 +7,15 @@ import org.jetbrains.kotlin.compiler.plugin.CommandLineProcessor
 import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.config.CompilerConfigurationKey
 
+val enabled = "enabled"
+val wellKnownPureClasses = "wellKnownPureClasses"
+val wellKnownPureFunctions = "wellKnownPureFunctions"
+val wellKnownReadonlyFunctions = "wellKnownReadonlyFunctions"
+
 @AutoService(CommandLineProcessor::class) // don't forget!
 class PurityCommandLineProcessor : CommandLineProcessor {
 
     override val pluginId: String = "purityPlugin"
-
-    val enabled = "enabled"
-    val wellKnownPureFunctions = "wellKnownPureFunctions"
     
     override val pluginOptions: Collection<CliOption> = listOf(
         CliOption(
@@ -21,11 +23,23 @@ class PurityCommandLineProcessor : CommandLineProcessor {
             description = "whether to enable the plugin or not"
         ),
         CliOption(
-            optionName = wellKnownPureFunctions, valueDescription = "<fully qualified function names delimited by underscores>",
-            description = "A list of fully qualified function names that are acceptable as pure functions",
+            optionName = wellKnownPureClasses, valueDescription = "<fully qualified class names delimited by underscores>",
+            description = "A list of fully qualified class names, all functions of which are pure functions",
             required = false
-        )
+        ),
+        CliOption(
+            optionName = wellKnownPureFunctions, valueDescription = "<fully qualified function names delimited by underscores>",
+            description = "A list of fully qualified function names that are pure functions",
+            required = false
+        ),
+        CliOption(
+            optionName = wellKnownReadonlyFunctions, valueDescription = "<fully qualified function names delimited by underscores>",
+            description = "A list of fully qualified function names that are readonly functions",
+            required = false
+        ),
     )
+    
+    fun stringToSet(string:String) = string.split("_").map { it.trim() }.toSet()
 
     override fun processOption(
         option: AbstractCliOption,
@@ -33,11 +47,14 @@ class PurityCommandLineProcessor : CommandLineProcessor {
         configuration: CompilerConfiguration
     ) = when (option.optionName) {
         enabled -> configuration.put(KEY_ENABLED, value.toBoolean())
-        wellKnownPureFunctions -> configuration.put(KEY_WELL_KNOWN_PURE_FUNCTIONS, value.split("_")
-            .map { it.trim() }.toSet())
+        wellKnownPureClasses -> configuration.put(KEY_WELL_KNOWN_PURE_CLASSES, stringToSet(value))
+        wellKnownPureFunctions -> configuration.put(KEY_WELL_KNOWN_PURE_FUNCTIONS, stringToSet(value))
+        wellKnownReadonlyFunctions -> configuration.put(KEY_WELL_KNOWN_READONLY_FUNCTIONS, stringToSet(value))
         else -> throw IllegalArgumentException("Unknown option: ${option.optionName}")
     }
 }
 
-val KEY_ENABLED = CompilerConfigurationKey<Boolean>("whether the plugin is enabled")
-val KEY_WELL_KNOWN_PURE_FUNCTIONS = CompilerConfigurationKey<Set<String>>("A list of fully qualified function names that are acceptable")
+val KEY_ENABLED = CompilerConfigurationKey<Boolean>(enabled)
+val KEY_WELL_KNOWN_PURE_CLASSES = CompilerConfigurationKey<Set<String>>(wellKnownPureClasses)
+val KEY_WELL_KNOWN_PURE_FUNCTIONS = CompilerConfigurationKey<Set<String>>(wellKnownPureFunctions)
+val KEY_WELL_KNOWN_READONLY_FUNCTIONS = CompilerConfigurationKey<Set<String>>(wellKnownReadonlyFunctions)

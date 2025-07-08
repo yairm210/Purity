@@ -1,6 +1,6 @@
 ## What is this?
 
-A Kotlin Compiler Plugin that determines Pure and Readonly functions. Under construction!
+A Kotlin Compiler Plugin for determining and enforcing Pure and Readonly functions. Under construction!
 
 ## Usage
 
@@ -14,16 +14,45 @@ plugins {
 
 Mark pure functions using `@Contract(pure = true)`, and readonly functions using `@Contract("readonly")`.
 
+### Rules
+
+- Pure functions may not:
+  - Get or set external vars (vars created outside the function)
+  - Call other non-pure functions
+
+- Readonly functions may not:
+  - Set external vars
+  - Call other non-readonly functions (pure functions are considered readonly as well)
+
+Any violation of these rules creates a compilation error.
+
+### Marking external classes
+
+To support idiomatic Kotlin, Purity recognizes pure and readonly functions of well-known classes.
+
+You can expand this recognition in the following way:
+
+```kotlin
+import yairm210.purity.PurityConfiguration // at the top of your build.gradle.kts
+
+configure<PurityConfiguration> { // All of these are examples that are already contained in the known functions/classes 
+  wellKnownPureClasses = setOf("kotlin.ranges.IntRange")
+  wellKnownPureFunctions = setOf("kotlin.collections.listOf")
+  wellKnownReadonlyFunctions = setOf("java.util.EnumMap.get")
+}
+
+```
+
 ### Suppressing validity checks
 
 Every dependency tree has leaves at the bottom. 
 Often, you want to mark your lowest functions as pure or readonly, and have the compiler only check the from it and up.
-You can do this my marking the function with `@Suppress("yairm210.purity")`, like so:
+You can do this my marking the function with `@Suppress("purity")`, like so:
 
 ```kotlin
 var external = 3
 // reads an external variable, but will not throw an error
-@Contract(pure = true) @Suppress("yairm210.purity")
+@Contract(pure = true) @Suppress("purity")
 fun actsAsPure(): Int {
     return external
 }
