@@ -8,7 +8,7 @@ Install the plugin by adding the following to your `build.gradle.kts`:
 
 ```kotlin
 plugins {
-    id("io.github.yairm210.purity-plugin") version "0.0.12"
+    id("io.github.yairm210.purity-plugin") version "0.0.13"
 }
 ```
 
@@ -116,3 +116,8 @@ Thus, the version must be updated in multiple places:
 
 Projects that helped me understand how to setup the project:
 * [Foso/KotlinCompilerPluginExample](https://github.com/Foso/KotlinCompilerPluginExample)
+
+## TODO
+
+- Compare with Expression.isPure() - can this be used instead of isUnchanging? What's the difference, practically? 
+- 

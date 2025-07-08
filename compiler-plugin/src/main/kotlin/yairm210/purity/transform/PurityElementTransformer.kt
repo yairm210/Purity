@@ -5,6 +5,7 @@ package yairm210.purity.transform
 import yairm210.purity.DebugLogger
 import org.jetbrains.kotlin.backend.common.IrElementTransformerVoidWithContext
 import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
+import org.jetbrains.kotlin.backend.common.ir.isPure
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageLocation
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
@@ -110,6 +111,8 @@ fun isMarkedAsPure(function: IrFunction, wellKnownPureClassesFromUser: Set<Strin
     // Simple values like int + int -> plus(int, int), are marked thus
     val constEvaluation = function.getAnnotation(FqName("kotlin.internal.IntrinsicConstEvaluation"))
     if (constEvaluation != null) return true
+    
+    if (isSingleStatementValOrConst(function)) return true
 
     return false
 }
@@ -147,11 +150,19 @@ private fun isSingleStatementVarReturn(function: IrFunction): Boolean {
     // If the function is a getter for a local variable, it is readonly
     if (statementValue is IrCall
         && statementValue.symbol.owner.name.asString().startsWith("<get-")
-    ) {
-        return true
-    }
+    ) return true
     // It's possible there's another direct way to return a variable without a getter - not sure when getters are created exactly...
     
+    return false
+}
+
+private fun isSingleStatementValOrConst(function: IrFunction): Boolean {
+    val body = function.body ?: return false
+    if (body is IrSyntheticBody) return false // Not sure what this IS, but it has no statements
+    if (body.statements.size != 1) return false
+    val statement = body.statements[0]
+    if (statement !is IrReturn) return false
+    if (statement.value.isUnchanging()) return true // const or val
     return false
 }
 
