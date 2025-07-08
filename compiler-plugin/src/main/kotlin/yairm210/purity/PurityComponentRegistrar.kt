@@ -22,7 +22,11 @@ class PurityComponentRegistrar : CompilerPluginRegistrar() {
         val logging = true
         
         IrGenerationExtension.registerExtension(
-            PurityIrGenerationExtension(DebugLogger(logging, messageCollector), configuration[KEY_WELL_KNOWN_PURE_FUNCTIONS] ?: setOf())
+            PurityIrGenerationExtension(DebugLogger(logging, messageCollector), 
+                configuration[KEY_WELL_KNOWN_PURE_CLASSES] ?: setOf(),
+                configuration[KEY_WELL_KNOWN_PURE_FUNCTIONS] ?: setOf(),
+                configuration[KEY_WELL_KNOWN_READONLY_FUNCTIONS] ?: setOf()
+            )
         )
     }
 }

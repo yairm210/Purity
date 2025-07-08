@@ -8,7 +8,9 @@ plugins {
 
 configure<PurityConfiguration> {
     enabled = true
+    wellKnownPureClasses = setOf("kotlin.ranges.IntRange")
     wellKnownPureFunctions = setOf("hi","bob")
+    wellKnownReadonlyFunctions = setOf("java.util.EnumMap.get")
 }
 
 

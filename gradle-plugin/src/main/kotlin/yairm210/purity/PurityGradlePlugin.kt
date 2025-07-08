@@ -9,7 +9,12 @@ import org.jetbrains.kotlin.gradle.plugin.SubpluginOption
 
 open class PurityConfiguration {
     var enabled: Boolean = true
+    /** Fully-qualified names of classes where all functions are pure */
+    var wellKnownPureClasses = setOf<String>()
+    /** Fully-qualified names of pure functions */
     var wellKnownPureFunctions = setOf<String>()
+    /** Fully-qualified names of readonly functions */
+    var wellKnownReadonlyFunctions = setOf<String>()
 }
 
 @Suppress("unused")
@@ -29,7 +34,9 @@ class PurityGradlePlugin : KotlinCompilerPluginSupportPlugin {
             val options = mutableListOf(
                 // TODO: Find a way to sync the key names between projects - other side is in PurityCommandLineProcessor
                 SubpluginOption("enabled", gradleExtension.enabled.toString()),
-                SubpluginOption("wellKnownPureFunctions", gradleExtension.wellKnownPureFunctions.joinToString("_"))
+                SubpluginOption("wellKnownPureClasses", gradleExtension.wellKnownPureClasses.joinToString("_")),
+                SubpluginOption("wellKnownPureFunctions", gradleExtension.wellKnownPureFunctions.joinToString("_")),
+                SubpluginOption("wellKnownReadonlyFunctions", gradleExtension.wellKnownReadonlyFunctions.joinToString("_")),
             )
             options
         }
