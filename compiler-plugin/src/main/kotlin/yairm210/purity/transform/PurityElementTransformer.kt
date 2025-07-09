@@ -5,7 +5,6 @@ package yairm210.purity.transform
 import yairm210.purity.DebugLogger
 import org.jetbrains.kotlin.backend.common.IrElementTransformerVoidWithContext
 import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
-import org.jetbrains.kotlin.backend.common.ir.isPure
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageLocation
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
@@ -60,7 +59,14 @@ val wellKnownReadonlyFunctions = setOf(
 )
 
 val wellKnownPureFunctions = setOf(
-    "kotlin.collections.listOf"
+    "kotlin.internal.ir.CHECK_NOT_NULL", // AKA !!
+    // Alas, not all of kotlin.collections is pure... 
+    "kotlin.collections.listOf",
+    "kotlin.collections.setOf",
+    "kotlin.collections.mapOf",
+    "kotlin.collections.emptyList",
+    "kotlin.collections.emptySet",
+    "kotlin.collections.emptyMap",
 )
 
 val wellKnownPureFunctionsPrefixes = listOf(
@@ -112,7 +118,7 @@ fun isMarkedAsPure(function: IrFunction, wellKnownPureClassesFromUser: Set<Strin
     val constEvaluation = function.getAnnotation(FqName("kotlin.internal.IntrinsicConstEvaluation"))
     if (constEvaluation != null) return true
     
-    if (isSingleStatementValOrConst(function)) return true
+    if (isSingleStatementReturnPure(function)) return true
 
     return false
 }
@@ -133,36 +139,36 @@ fun isReadonly(function: IrFunction, wellKnownReadonlyFunctionsFromUser: Set<Str
     if (fullyQualifiedFunctionName in wellKnownReadonlyFunctions) return true
     if (fullyQualifiedFunctionName in wellKnownReadonlyFunctionsFromUser) return true
     
-    if (isSingleStatementVarReturn(function)) return true
+    if (isSingleStatementReturnReadonly(function)) return true
 
     return false
 }
 
 /** For convenience - single-declaration functions like "fun getX() = x" are readonly */
-private fun isSingleStatementVarReturn(function: IrFunction): Boolean {
+private fun isSingleStatementReturnReadonly(function: IrFunction): Boolean {
     val body = function.body ?: return false
     if (body is IrSyntheticBody) return false // Not sure what this IS, but it has no statements
     if (body.statements.size != 1) return false
     val statement = body.statements[0]
     if (statement !is IrReturn) return false
-    val statementValue = statement.value
+    val value = statement.value
     
-    // If the function is a getter for a local variable, it is readonly
-    if (statementValue is IrCall
-        && statementValue.symbol.owner.name.asString().startsWith("<get-")
-    ) return true
-    // It's possible there's another direct way to return a variable without a getter - not sure when getters are created exactly...
+    if (value is IrGetValue) return true
     
     return false
 }
 
-private fun isSingleStatementValOrConst(function: IrFunction): Boolean {
+private fun isSingleStatementReturnPure(function: IrFunction): Boolean {
     val body = function.body ?: return false
     if (body is IrSyntheticBody) return false // Not sure what this IS, but it has no statements
     if (body.statements.size != 1) return false
     val statement = body.statements[0]
     if (statement !is IrReturn) return false
-    if (statement.value.isUnchanging()) return true // const or val
+    
+    val value = statement.value
+    if (value is IrConst<*>) return true
+    if (value is IrGetValue && !value.symbol.owner.let { it is IrVariable && it.isVar }) return true
+    
     return false
 }
 
