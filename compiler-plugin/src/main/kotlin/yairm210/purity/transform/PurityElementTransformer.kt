@@ -30,10 +30,12 @@ val wellKnownReadonlyClasses = setOf(
     "kotlin.collections.Set",
     "kotlin.collections.Map",
     "kotlin.collections.Collection",
+    "kotlin.collections.Iterator",
+    "kotlin.collections.IntIterator",
     "kotlin.sequences.Sequence",
     "kotlin.text.Regex",
     "kotlin.text.MatchResult",
-    "kotlin.sequences.Sequence"
+    "kotlin.sequences.Sequence",
 )
 
 val wellKnownPureClasses = setOf(
@@ -60,9 +62,13 @@ val wellKnownReadonlyFunctions = setOf(
     "kotlin.collections.Map.containsKey",
     "kotlin.collections.Map.containsValue",
     "kotlin.collections.Map.get",
+    // Collection
     "java.util.Collection.isEmpty",
     "java.util.Collection.contains",
     "java.util.Collection.size",
+    // Kotlin collection extension functions
+    "kotlin.collections.asSequence",
+    "kotlin.collections.firstOrNull"
 )
 
 val wellKnownPureFunctions = setOf(
@@ -71,6 +77,7 @@ val wellKnownPureFunctions = setOf(
     "kotlin.collections.listOf",
     "kotlin.collections.setOf",
     "kotlin.collections.mapOf",
+    "kotlin.sequences.sequenceOf",
     "kotlin.collections.emptyList",
     "kotlin.collections.emptySet",
     "kotlin.collections.emptyMap",
@@ -141,6 +148,9 @@ fun isReadonly(function: IrFunction, wellKnownReadonlyFunctionsFromUser: Set<Str
     val fullyQualifiedClassName = function.parent.fqNameForIrSerialization.asString()
     if (fullyQualifiedClassName in wellKnownReadonlyClasses) return true
     // TODO: Do we need user-inputted readonly classes?
+    
+    // Do NOT check for readonly parent classes - child classes can add non-readonly functionality!
+    // E.g. List is readonly, but ArrayList is not.
 
     val fullyQualifiedFunctionName = function.fqNameForIrSerialization.asString()
     if (fullyQualifiedFunctionName in wellKnownReadonlyFunctions) return true
@@ -149,7 +159,6 @@ fun isReadonly(function: IrFunction, wellKnownReadonlyFunctionsFromUser: Set<Str
     // What is a NON-simple function, you ask? So do I! Lazy functions perhaps?
     if (function is IrSimpleFunction) {
         // Check if we're overriding a well-known readonly function
-
         for (overriddenFunction in getAllOverriddenFunctions(function).toSet()) {
             val overriddenFunctionName = overriddenFunction.fqNameForIrSerialization.asString()
             if (overriddenFunctionName in wellKnownReadonlyFunctions) return true
@@ -356,7 +365,7 @@ internal class PurityElementTransformer(
         val suppressParameters: List<String> = suppressAnnotation.valueArguments.flatMap { (it as IrVarargImpl).elements }
             .mapNotNull{it as? IrConst<String>}.map { it.value }
 
-        return suppressParameters.contains("yairm210.purity")
+        return suppressParameters.contains("purity")
     }
     
     override fun visitSimpleFunction(declaration: IrSimpleFunction): IrStatement {
