@@ -52,10 +52,17 @@ val wellKnownPureClasses = setOf(
     "kotlin.ranges.DoubleRange",
 )
 
+// Where possible, use interfaces that cover a lot of classes
 val wellKnownReadonlyFunctions = setOf(
-    "java.util.EnumMap.get",
-    "java.util.HashMap.get",
-    "java.util.LinkedHashMap.get",
+    // Somehow Kotlin manages to make "overridden symbols" for hashmap functions contain AbstractMap and  
+    // kotlin.collections.MutableMap and kotlin.collections.Map. But NOT Java.util.Map. WTF?
+    "kotlin.collections.Map.isEmpty",
+    "kotlin.collections.Map.containsKey",
+    "kotlin.collections.Map.containsValue",
+    "kotlin.collections.Map.get",
+    "java.util.Collection.isEmpty",
+    "java.util.Collection.contains",
+    "java.util.Collection.size",
 )
 
 val wellKnownPureFunctions = setOf(
@@ -139,9 +146,29 @@ fun isReadonly(function: IrFunction, wellKnownReadonlyFunctionsFromUser: Set<Str
     if (fullyQualifiedFunctionName in wellKnownReadonlyFunctions) return true
     if (fullyQualifiedFunctionName in wellKnownReadonlyFunctionsFromUser) return true
     
+    // What is a NON-simple function, you ask? So do I! Lazy functions perhaps?
+    if (function is IrSimpleFunction) {
+        // Check if we're overriding a well-known readonly function
+
+        for (overriddenFunction in getAllOverriddenFunctions(function).toSet()) {
+            val overriddenFunctionName = overriddenFunction.fqNameForIrSerialization.asString()
+            if (overriddenFunctionName in wellKnownReadonlyFunctions) return true
+            if (overriddenFunctionName in wellKnownReadonlyFunctionsFromUser) return true
+        }
+    }
+    
     if (isSingleStatementReturnReadonly(function)) return true
 
     return false
+}
+
+// overriddenSymbols only gives you the *direct* overrides, not the transitive ones.
+fun getAllOverriddenFunctions(function: IrSimpleFunction): Sequence<IrSimpleFunction> {
+    return function.overriddenSymbols.asSequence()
+        .flatMap {
+            val owner = it.owner
+            sequenceOf(owner) + getAllOverriddenFunctions(owner)
+        }
 }
 
 /** For convenience - single-declaration functions like "fun getX() = x" are readonly */
