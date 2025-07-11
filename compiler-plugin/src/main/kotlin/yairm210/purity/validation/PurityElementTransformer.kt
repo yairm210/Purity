@@ -14,15 +14,14 @@ import org.jetbrains.kotlin.ir.util.findAnnotation
 import org.jetbrains.kotlin.ir.util.isInterface
 import org.jetbrains.kotlin.ir.util.parentClassOrNull
 import org.jetbrains.kotlin.name.FqName
+import yairm210.purity.PurityConfig
 import yairm210.purity.boilerplate.DebugLogger
 
 
 internal class PurityElementTransformer(
     private val pluginContext: IrPluginContext,
     private val debugLogger: DebugLogger,
-    private val wellKnownPureClassesFromUser: Set<String>,
-    private val wellKnownPureFunctionsFromUser: Set<String>,
-    private val wellKnownReadonlyFunctionsFromUser: Set<String>
+    private val purityConfig: PurityConfig,
 ) : IrElementTransformerVoidWithContext() {
     
     // These are created behind the scenes for every class, don't warn for them
@@ -72,17 +71,14 @@ internal class PurityElementTransformer(
         if (isSuppressed(declaration)) return super.visitSimpleFunction(declaration)
 
         val functionDeclaredColoring = when {
-            PurityChecker.isMarkedAsPure(declaration, wellKnownPureClassesFromUser, wellKnownPureFunctionsFromUser) -> FunctionPurity.Pure
-            PurityChecker.isReadonly(declaration, wellKnownReadonlyFunctionsFromUser) -> FunctionPurity.Readonly
+            PurityChecker.isMarkedAsPure(declaration, purityConfig) -> FunctionPurity.Pure
+            PurityChecker.isReadonly(declaration, purityConfig) -> FunctionPurity.Readonly
             else -> FunctionPurity.None
         }
         val messageCollector = if (functionDeclaredColoring == FunctionPurity.None) MessageCollector.NONE 
         else debugLogger.messageCollector
         
-        val visitor = CheckFunctionPurityVisitor(declaration, functionDeclaredColoring, messageCollector,
-            wellKnownPureClassesFromUser,
-            wellKnownPureFunctionsFromUser,
-            wellKnownReadonlyFunctionsFromUser)
+        val visitor = CheckFunctionPurityVisitor(declaration, functionDeclaredColoring, messageCollector, purityConfig)
         declaration.accept(visitor, Unit)
         
         val actualColoring = visitor.actualFunctionColoring()

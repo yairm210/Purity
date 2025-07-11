@@ -15,6 +15,7 @@ import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
 import org.jetbrains.kotlin.ir.util.fileEntry
 import org.jetbrains.kotlin.ir.util.fqNameForIrSerialization
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
+import yairm210.purity.PurityConfig
 
 
 fun getLocationForExpression(
@@ -37,9 +38,7 @@ class CheckFunctionPurityVisitor(
     private val function: IrFunction,
     private val declaredFunctionPurity: FunctionPurity,
     private val messageCollector: MessageCollector,
-    private val wellKnownPureClassesFromUser: Set<String>,
-    private val wellKnownPureFunctionsFromUser: Set<String>,
-    private val wellKnownReadonlyFunctionsFromUser: Set<String>,
+    private val purityConfig: PurityConfig,
     ) : IrElementVisitor<Unit, Unit> { // Returns whether this is an acceptable X function
     var isReadonly = true
     var isPure = true
@@ -97,10 +96,10 @@ class CheckFunctionPurityVisitor(
                 (expression.dispatchReceiver as IrGetValue).symbol.owner.parent == function
         
         val calledFunctionPurity =  when {
-            PurityChecker.isMarkedAsPure(calledFunction, wellKnownPureClassesFromUser, wellKnownPureFunctionsFromUser) 
+            PurityChecker.isMarkedAsPure(calledFunction, purityConfig) 
                     || (PurityChecker.classMatches(calledFunction, wellKnownInternalStateClasses) && callerIsDeclaredInOurFunction())
                 -> FunctionPurity.Pure
-            PurityChecker.isReadonly(calledFunction, wellKnownReadonlyFunctionsFromUser) -> FunctionPurity.Readonly
+            PurityChecker.isReadonly(calledFunction, purityConfig) -> FunctionPurity.Readonly
             else -> FunctionPurity.None
         }
         
