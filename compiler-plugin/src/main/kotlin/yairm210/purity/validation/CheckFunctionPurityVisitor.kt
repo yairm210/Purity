@@ -92,12 +92,26 @@ class CheckFunctionPurityVisitor(
         // Only accept calls to functions marked as pure or readonly
         val calledFunction = expression.symbol.owner
         
-        fun callerIsDeclaredInOurFunction() = expression.dispatchReceiver is IrGetValue &&
-                (expression.dispatchReceiver as IrGetValue).symbol.owner.parent == function
+        /** Great in theory, thorny in practice...
+         *  We currently don't have a good way to validate that the class's constructor was called from our function
+         *  And this isn't just redeclaring a local val to an external one - see alterExternallyDeclaredInnerStateClass in SampleJvm
+         *  Keeping this in case anyone else has a good idea of how to implement it because the theory is sound
+         *  When this works, uncomment correctLocalStateNonChainingPure
+         *  */
+        fun callerIsConstructedInOurFunction(): Boolean {
+            return false
+            //  
+            return expression.dispatchReceiver is IrGetValue &&
+                    // is val
+                    (expression.dispatchReceiver as IrGetValue).symbol.owner.let { it is IrVariable && !it.isVar }
+                    // Is declared in our function
+                    (expression.dispatchReceiver as IrGetValue).symbol.owner.parent == function
+                    // Val is set to result of constructor - TODO
+        }
         
         val calledFunctionPurity =  when {
             PurityChecker.isMarkedAsPure(calledFunction, purityConfig) 
-                    || (PurityChecker.classMatches(calledFunction, wellKnownInternalStateClasses) && callerIsDeclaredInOurFunction())
+                    || (callerIsConstructedInOurFunction() && PurityChecker.classMatches(calledFunction, wellKnownInternalStateClasses))
                 -> FunctionPurity.Pure
             PurityChecker.isReadonly(calledFunction, purityConfig) -> FunctionPurity.Readonly
             else -> FunctionPurity.None

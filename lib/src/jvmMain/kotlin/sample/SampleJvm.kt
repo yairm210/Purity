@@ -16,13 +16,14 @@ enum class MyEnum {
     A, B
 }
 
-@Contract(pure = true)
-fun correctLocalStateNonChainingPure(): String {
-    val stringBuilder = StringBuilder()
-    stringBuilder.append("Hello, ")
-    stringBuilder.append("World!")
-    return stringBuilder.toString()
-}
+// Disabled due to implementation problems in callerIsConstructedInOurFunction, see there 
+//@Contract(pure = true)
+//fun correctLocalStateNonChainingPure(): String {
+//    val stringBuilder = StringBuilder()
+//    stringBuilder.append("Hello, ")
+//    stringBuilder.append("World!")
+//    return stringBuilder.toString()
+//}
 
 val map = HashMap<String, String>()
 
@@ -115,5 +116,12 @@ fun main() {
         return a * a
     }
 
-    println(add(1,2))
+
+    val arrayList = ArrayList<String>()
+    // This should NOT be considered for "modify internal state" checks - we didn't construct the ArrayList!
+    //@Contract(pure = true)
+    fun alterExternallyDeclaredInnerStateClass() {
+        val existingArrayList = arrayList
+        existingArrayList.remove("string")
+    }
 }
