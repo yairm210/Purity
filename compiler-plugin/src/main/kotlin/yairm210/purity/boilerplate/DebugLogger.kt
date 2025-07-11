@@ -1,4 +1,4 @@
-package yairm210.purity
+package yairm210.purity.boilerplate
 
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
