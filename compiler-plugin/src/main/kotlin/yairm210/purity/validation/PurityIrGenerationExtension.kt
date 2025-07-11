@@ -1,6 +1,6 @@
-package yairm210.purity.transform
+package yairm210.purity.validation
 
-import yairm210.purity.DebugLogger
+import yairm210.purity.boilerplate.DebugLogger
 import org.jetbrains.kotlin.backend.common.extensions.IrGenerationExtension
 import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment

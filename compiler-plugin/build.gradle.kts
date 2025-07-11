@@ -25,7 +25,7 @@ version = "0.0.15"
 mavenPublishing {
     coordinates(group.toString(), "purity-compiler-plugin", version.toString())
     publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL)
-    signAllPublications() // Comment out for local publishing if you don't have a GPG key set up
+//    signAllPublications() // Comment out for local publishing if you don't have a GPG key set up
 
     pom {
         name = "Purity Compiler Plugin"
