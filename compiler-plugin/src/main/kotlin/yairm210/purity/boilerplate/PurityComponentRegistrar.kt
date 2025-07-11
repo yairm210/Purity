@@ -1,12 +1,12 @@
 package yairm210.purity.boilerplate
 
 import com.google.auto.service.AutoService
-import yairm210.purity.validation.PurityIrGenerationExtension
 import org.jetbrains.kotlin.backend.common.extensions.IrGenerationExtension
 import org.jetbrains.kotlin.cli.common.CLIConfigurationKeys
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
 import org.jetbrains.kotlin.compiler.plugin.CompilerPluginRegistrar
 import org.jetbrains.kotlin.config.CompilerConfiguration
+import yairm210.purity.PurityConfig
 
 @AutoService(CompilerPluginRegistrar::class)
 class PurityComponentRegistrar : CompilerPluginRegistrar() {
@@ -24,9 +24,7 @@ class PurityComponentRegistrar : CompilerPluginRegistrar() {
         IrGenerationExtension.registerExtension(
             PurityIrGenerationExtension(
                 DebugLogger(logging, messageCollector), 
-                configuration[KEY_WELL_KNOWN_PURE_CLASSES] ?: setOf(),
-                configuration[KEY_WELL_KNOWN_PURE_FUNCTIONS] ?: setOf(),
-                configuration[KEY_WELL_KNOWN_READONLY_FUNCTIONS] ?: setOf()
+                configuration[KEY_PURITY_CONFIG] ?: PurityConfig()
             )
         )
     }

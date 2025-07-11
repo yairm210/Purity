@@ -1,3 +1,4 @@
+@file:OptIn(UnsafeDuringIrConstructionAPI::class)
 package yairm210.purity.validation
 
 import org.jetbrains.kotlin.ir.declarations.IrFunction
@@ -7,11 +8,13 @@ import org.jetbrains.kotlin.ir.expressions.IrConst
 import org.jetbrains.kotlin.ir.expressions.IrGetValue
 import org.jetbrains.kotlin.ir.expressions.IrReturn
 import org.jetbrains.kotlin.ir.expressions.IrSyntheticBody
+import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
 import org.jetbrains.kotlin.ir.util.fqNameForIrSerialization
 import org.jetbrains.kotlin.ir.util.getAnnotation
 import org.jetbrains.kotlin.ir.util.getAnnotationArgumentValue
 import org.jetbrains.kotlin.ir.util.statements
 import org.jetbrains.kotlin.name.FqName
+import yairm210.purity.PurityConfig
 
 object PurityChecker {
 
@@ -21,18 +24,18 @@ object PurityChecker {
     }
 
 
-    fun isMarkedAsPure(function: IrFunction, wellKnownPureClassesFromUser: Set<String>, wellKnownPureFunctionsFromUser: Set<String>): Boolean {
+    fun isMarkedAsPure(function: IrFunction, purityConfig: PurityConfig): Boolean {
         // Marked by @Contract(pure = true)
         val pure = function.getAnnotationArgumentValue<Boolean>(FqName("org.jetbrains.annotations.Contract"), "pure")
         if (pure == true) return true
 
         val fullyQualifiedClassName = function.parent.fqNameForIrSerialization.asString()
         if (fullyQualifiedClassName in wellKnownPureClasses) return true
-        if (fullyQualifiedClassName in wellKnownPureClassesFromUser) return true
+        if (fullyQualifiedClassName in purityConfig.wellKnownPureClassesFromUser) return true
 
         val fullyQualifiedFunctionName = function.fqNameForIrSerialization.asString()
         if (fullyQualifiedFunctionName in wellKnownPureFunctions) return true
-        if (fullyQualifiedFunctionName in wellKnownPureFunctionsFromUser) return true
+        if (fullyQualifiedFunctionName in purityConfig.wellKnownPureFunctionsFromUser) return true
         if (wellKnownPureFunctionsPrefixes.any { fullyQualifiedFunctionName.startsWith(it) }) return true
 
         // Simple values like int + int -> plus(int, int), are marked thus
@@ -45,7 +48,7 @@ object PurityChecker {
     }
 
 
-    fun isReadonly(function: IrFunction, wellKnownReadonlyFunctionsFromUser: Set<String>): Boolean {
+    fun isReadonly(function: IrFunction, purityConfig: PurityConfig): Boolean {
         // Marked by @Contract(pure = true)
         val contractValue = function.getAnnotationArgumentValue<String>(FqName("org.jetbrains.annotations.Contract"), "value")
         if (contractValue == "readonly") return true
@@ -61,7 +64,7 @@ object PurityChecker {
 
         val fullyQualifiedFunctionName = function.fqNameForIrSerialization.asString()
         if (fullyQualifiedFunctionName in wellKnownReadonlyFunctions) return true
-        if (fullyQualifiedFunctionName in wellKnownReadonlyFunctionsFromUser) return true
+        if (fullyQualifiedFunctionName in purityConfig.wellKnownReadonlyFunctionsFromUser) return true
 
         // What is a NON-simple function, you ask? So do I! Lazy functions perhaps?
         if (function is IrSimpleFunction) {
@@ -69,7 +72,7 @@ object PurityChecker {
             for (overriddenFunction in getAllOverriddenFunctions(function).toSet()) {
                 val overriddenFunctionName = overriddenFunction.fqNameForIrSerialization.asString()
                 if (overriddenFunctionName in wellKnownReadonlyFunctions) return true
-                if (overriddenFunctionName in wellKnownReadonlyFunctionsFromUser) return true
+                if (overriddenFunctionName in purityConfig.wellKnownReadonlyFunctionsFromUser) return true
             }
         }
 

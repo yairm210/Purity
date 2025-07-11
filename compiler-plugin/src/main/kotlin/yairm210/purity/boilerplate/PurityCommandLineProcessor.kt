@@ -6,6 +6,7 @@ import org.jetbrains.kotlin.compiler.plugin.CliOption
 import org.jetbrains.kotlin.compiler.plugin.CommandLineProcessor
 import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.config.CompilerConfigurationKey
+import yairm210.purity.PurityConfig
 
 val enabled = "enabled"
 val wellKnownPureClasses = "wellKnownPureClasses"
@@ -39,22 +40,28 @@ class PurityCommandLineProcessor : CommandLineProcessor {
         ),
     )
     
-    fun stringToSet(string:String) = string.split("_").map { it.trim() }.toSet()
+    private fun stringToSet(string:String) = string.split("_").map { it.trim() }.toSet()
 
+    private fun getConfig(configuration: CompilerConfiguration): PurityConfig {
+        val currentValue = configuration.get(KEY_PURITY_CONFIG)
+        if (currentValue != null) return currentValue
+        val newConfig = PurityConfig()
+        configuration.put(KEY_PURITY_CONFIG, newConfig)
+        return newConfig
+    }
+    
     override fun processOption(
         option: AbstractCliOption,
         value: String,
         configuration: CompilerConfiguration
     ) = when (option.optionName) {
         enabled -> configuration.put(KEY_ENABLED, value.toBoolean())
-        wellKnownPureClasses -> configuration.put(KEY_WELL_KNOWN_PURE_CLASSES, stringToSet(value))
-        wellKnownPureFunctions -> configuration.put(KEY_WELL_KNOWN_PURE_FUNCTIONS, stringToSet(value))
-        wellKnownReadonlyFunctions -> configuration.put(KEY_WELL_KNOWN_READONLY_FUNCTIONS, stringToSet(value))
+        wellKnownPureClasses -> getConfig(configuration).wellKnownPureClassesFromUser = stringToSet(value)
+        wellKnownPureFunctions -> getConfig(configuration).wellKnownPureFunctionsFromUser = stringToSet(value)
+        wellKnownReadonlyFunctions -> getConfig(configuration).wellKnownReadonlyFunctionsFromUser = stringToSet(value)
         else -> throw IllegalArgumentException("Unknown option: ${option.optionName}")
     }
 }
 
 val KEY_ENABLED = CompilerConfigurationKey<Boolean>(enabled)
-val KEY_WELL_KNOWN_PURE_CLASSES = CompilerConfigurationKey<Set<String>>(wellKnownPureClasses)
-val KEY_WELL_KNOWN_PURE_FUNCTIONS = CompilerConfigurationKey<Set<String>>(wellKnownPureFunctions)
-val KEY_WELL_KNOWN_READONLY_FUNCTIONS = CompilerConfigurationKey<Set<String>>(wellKnownReadonlyFunctions)
+val KEY_PURITY_CONFIG = CompilerConfigurationKey<PurityConfig>("purityConfig")
