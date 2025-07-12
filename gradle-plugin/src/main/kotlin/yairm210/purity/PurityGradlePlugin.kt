@@ -23,7 +23,7 @@ class PurityGradlePlugin : KotlinCompilerPluginSupportPlugin {
     companion object {
         const val COMPILER_PLUGIN_GROUP_NAME = "io.github.yairm210"
         const val ARTIFACT_NAME = "purity-compiler-plugin"
-        const val VERSION_NUMBER = "0.0.16"
+        const val VERSION_NUMBER = "0.0.17"
     }
 
     private var gradleExtension : PurityConfiguration = PurityConfiguration()
