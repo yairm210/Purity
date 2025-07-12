@@ -2,7 +2,7 @@ import yairm210.purity.PurityConfiguration
 
 plugins {
     id("org.jetbrains.kotlin.multiplatform") version libs.versions.kotlin
-    id("io.github.yairm210.purity-plugin") version "1.0.3" // Use the version published to Maven Local
+    id("io.github.yairm210.purity-plugin") version "1.0.3" // This is overridden in settings so the version doesn't matter
 }
 
 
@@ -20,7 +20,11 @@ kotlin {
 //    linuxX64("linux")
 //    js()
     sourceSets {
-        val commonMain by getting {}
+        val commonMain by getting {
+            dependencies {
+                implementation(project(":annotations"))
+            }
+        }
 
 //        val jsMain by getting {
 //
@@ -30,10 +34,8 @@ kotlin {
 //        }
 
         val jvmMain by getting {
-
-
             dependencies {
-
+                implementation(project(":annotations"))
             }
         }
 //        val linuxMain by getting {
