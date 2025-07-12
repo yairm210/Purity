@@ -1,6 +1,7 @@
 package sample
 
 import org.jetbrains.annotations.Contract
+import yairm210.purity.annotations.Pure
 import java.util.*
 import kotlin.collections.HashMap
 
@@ -72,7 +73,7 @@ fun main() {
     }
 
     // WRONG: not pure, because it reads an external variable
-    @Contract(pure = true) @Suppress("purity")
+    @Pure @Suppress("purity")
     fun incorrectPure(): Int {
         return external
     }

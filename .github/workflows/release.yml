@@ -38,11 +38,26 @@ jobs:
           exit 1
         fi
         
+        ANNOTATIONS_VERSION=$(grep 'version = ' annotations/build.gradle.kts | cut -d'"' -f2)
+        if [ "$TAG" != "$ANNOTATIONS_VERSION" ]; then
+          echo "Tag $TAG does not match annotations version: $ANNOTATIONS_VERSION"
+          exit 1
+        fi
+        
         GRADLE_PLUGIN_VERSION_OF_COMPILER_PLUGIN=$(grep 'VERSION_NUMBER = ' gradle-plugin/src/main/kotlin/yairm210/purity/PurityGradlePlugin.kt | cut -d'"' -f2)
         if [ "$TAG" != "$GRADLE_PLUGIN_VERSION_OF_COMPILER_PLUGIN" ]; then
           echo "Tag $TAG does not match Gradle plugin version of the compiler plugin: $GRADLE_PLUGIN_VERSION_OF_COMPILER_PLUGIN"
           exit 1
         fi
+
+    - name: Publish annotations
+      env:
+        ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.ORG_GRADLE_PROJECT_MAVENCENTRALUSERNAME }}
+        ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.ORG_GRADLE_PROJECT_MAVENCENTRALPASSWORD }}
+        ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.ORG_GRADLE_PROJECT_SIGNINGINMEMORYKEY }}
+        ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.ORG_GRADLE_PROJECT_SIGNINGINMEMORYKEYPASSWORD }}
+      
+      run: ./gradlew annotations:publishAndReleaseToMavenCentral
 
     - name: Publish compiler plugin
       env:
