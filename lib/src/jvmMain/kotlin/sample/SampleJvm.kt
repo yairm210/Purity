@@ -1,7 +1,7 @@
 package sample
 
-import org.jetbrains.annotations.Contract
 import yairm210.purity.annotations.Pure
+import yairm210.purity.annotations.Readonly
 import java.util.*
 import kotlin.collections.HashMap
 
@@ -18,7 +18,7 @@ enum class MyEnum {
 }
 
 // Disabled due to implementation problems in callerIsConstructedInOurFunction, see there 
-//@Contract(pure = true)
+//@Pure
 //fun correctLocalStateNonChainingPure(): String {
 //    val stringBuilder = StringBuilder()
 //    stringBuilder.append("Hello, ")
@@ -28,13 +28,13 @@ enum class MyEnum {
 
 val map = HashMap<String, String>()
 
-@Contract("readonly")
+@Readonly
 fun correctReadonlyInterfaceOverrideUsage(): Boolean {
     return map.containsKey("key")
 }
 
 //
-//@Contract("readonly")
+//@Readonly
 fun correctSequenceChainingPure(): String {
     return sequenceOf("Hello, ", "World!")
         .joinToString(separator = "")
@@ -43,7 +43,7 @@ fun correctSequenceChainingPure(): String {
 
 var enumMap = EnumMap<MyEnum, String>(MyEnum::class.java)
 
-@Contract("readonly")
+@Readonly
 fun getUniques(uniqueType: MyEnum) = enumMap[uniqueType]
     ?.asSequence()
     ?: emptySequence()
@@ -64,7 +64,7 @@ fun main() {
     fun incorrectPureReturnsExternal() = external
 
     // RIGHT: readonly, because reading external variables is allowed
-    @Contract("readonly")
+    @Readonly
     fun correctReadonly(): Int {
         1.rangeTo(2)
         val x = listOf(1,2)
@@ -78,25 +78,25 @@ fun main() {
         return external
     }
     
-    @Contract(pure = true)
+    @Pure
     fun give(a: Int): Int {
         return a
     }
 
-    @Contract(pure = true) @Suppress("purity")
+    @Pure @Suppress("purity")
     fun untrustable(a: Int, b: Int): Int {
         external = 4
         return a
     }
 
-    @Contract(pure = true)
+    @Pure
     fun getList() = listOf(1,2)
 
     fun Int.self(): Int {
         return this
     }
     
-    @Contract(pure = true) @Suppress("purity")
+    @Pure @Suppress("purity")
     fun add(a: Int, b: Int): Int {
         external = 4
         untrustable(5, 6)
@@ -105,14 +105,14 @@ fun main() {
     }
 
     // NOT reported as a problem since the variable is internal
-    @Contract(pure = true)
+    @Pure
     fun setsInternalVariable(): Int {
         var internal = 3
         internal = 4
         return internal
     }
 
-    @Contract("readonly")
+    @Readonly
     fun unmarkedFunction(a: Int): Int {
         return a * a
     }
@@ -120,7 +120,7 @@ fun main() {
 
     val arrayList = ArrayList<String>()
     // This should NOT be considered for "modify internal state" checks - we didn't construct the ArrayList!
-    //@Contract(pure = true)
+    //@Pure
     fun alterExternallyDeclaredInnerStateClass() {
         val existingArrayList = arrayList
         existingArrayList.remove("string")

@@ -10,9 +10,28 @@ Install the plugin by adding the following to your `build.gradle.kts`:
 plugins {
     id("io.github.yairm210.purity-plugin") version "0.0.17"
 }
+
+dependencies {
+  compileOnly("io.github.yairm210:purity-annotations:0.0.17")
+}
 ```
 
-Mark pure functions using `@Contract(pure = true)`, and readonly functions using `@Contract("readonly")`.
+
+Mark pure functions using `@Pure`, and readonly functions using `@Readonly`:
+
+```kotlin
+import yairm210.purity.annotations.Pure
+import yairm210.purity.annotations.Readonly
+@Pure
+fun pureFunction(x: Int): Int {
+    return x * 2
+}
+@Readonly
+fun readonlyFunction(list: List<String>): Int {
+    return list.size
+}
+```
+
 
 ### Rules
 
@@ -52,7 +71,7 @@ You can do this my marking the function with `@Suppress("purity")`, like so:
 ```kotlin
 var external = 3
 // reads an external variable, but will not throw an error
-@Contract(pure = true) @Suppress("purity")
+@Pure @Suppress("purity")
 fun actsAsPure(): Int {
     return external
 }
