@@ -45,12 +45,17 @@ val wellKnownReadonlyFunctions = setOf(
     "java.util.Collection.isEmpty",
     "java.util.Collection.contains",
     "java.util.Collection.size",
-    // Kotlin collection extension functions
-    "kotlin.collections.asSequence",
-    "kotlin.collections.first",
-    "kotlin.collections.firstOrNull",
-    "kotlin.collections.any",
 )
+
+// MOST of these are readonly, but some are unfortunately not. :(
+// This is easier than making one huge list of all the acceptable functions
+// TODO: Maybe run this statically and generate a compile-time list of all functions, so we don't need String comparisons
+fun isWellKnownIterableOrSequenceFunction(fqname: String): Boolean {
+    if (!fqname.startsWith("kotlin.collections.") && !fqname.startsWith("kotlin.sequences.")) return false
+    if (fqname.endsWith("to")) return false // These get a collection and add to it
+    if (fqname.endsWith("toCollection")) return false
+    return true
+}
 
 val wellKnownPureFunctions = setOf(
     "kotlin.internal.ir.CHECK_NOT_NULL", // AKA !!
