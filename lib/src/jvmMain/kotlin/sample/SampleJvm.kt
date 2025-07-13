@@ -48,6 +48,13 @@ fun getUniques(uniqueType: MyEnum) = enumMap[uniqueType]
     ?.asSequence()
     ?: emptySequence()
 
+var myList = listOf("Hello", "World")
+@Readonly
+fun correctListChainingPure(): String {
+    return myList
+        .filter { it.isNotEmpty() }
+        .joinToString(separator = " ")
+}
 
 //
 //data class MyDataClass(val a: Int, val b: String)

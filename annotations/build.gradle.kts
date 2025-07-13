@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "io.github.yairm210"
-version = "0.0.17"
+version = "0.0.18"
 
 kotlin {
     sourceSets{
