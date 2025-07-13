@@ -96,8 +96,8 @@ internal class PurityElementTransformer(
             // if equal, no message; If less that declared, we already warn for each individual violation
             if (functionDeclaredColoring < actualColoring) {
                 val message = when (actualColoring) {
-                    FunctionPurity.Pure -> "Function \"${declaration.name}\" can be marked with @Contract(pure = true) to indicate it is pure"
-                    FunctionPurity.Readonly -> "Function \"${declaration.name}\" can be marked with @Contract(\"readonly\") to indicate it is readonly"
+                    FunctionPurity.Pure -> "Function \"${declaration.name}\" can be marked with @Pure to indicate it is pure"
+                    FunctionPurity.Readonly -> "Function \"${declaration.name}\" can be marked with @Readonly to indicate it is readonly"
                     else -> throw Exception("Unexpected function coloring: $actualColoring")
                 }
 

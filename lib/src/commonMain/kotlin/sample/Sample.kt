@@ -1,7 +1,5 @@
 package sample
 
-import org.jetbrains.annotations.Contract
-
 expect class Sample() {
     fun checkMe(): Int
 }
