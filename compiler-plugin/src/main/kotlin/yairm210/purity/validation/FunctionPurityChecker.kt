@@ -11,7 +11,8 @@ import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.name.FqName
 import yairm210.purity.PurityConfig
 
-object PurityChecker {
+/** Checks the purity of a given IrFunction */
+object FunctionPurityChecker {
 
     fun classMatches(function: IrFunction, wellKnownClasses: Set<String>): Boolean {
         val parentClassIdentifier = function.parent.fqNameForIrSerialization.asString()

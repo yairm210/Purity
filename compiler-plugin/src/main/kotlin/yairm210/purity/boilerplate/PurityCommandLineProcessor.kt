@@ -9,6 +9,7 @@ import org.jetbrains.kotlin.config.CompilerConfigurationKey
 import yairm210.purity.PurityConfig
 
 val enabled = "enabled"
+val warnOnPossibleAnnotations = "warnOnPossibleAnnotations"
 val wellKnownPureClasses = "wellKnownPureClasses"
 val wellKnownPureFunctions = "wellKnownPureFunctions"
 val wellKnownReadonlyFunctions = "wellKnownReadonlyFunctions"
@@ -22,6 +23,10 @@ class PurityCommandLineProcessor : CommandLineProcessor {
         CliOption(
             optionName = enabled, valueDescription = "<true|false>",
             description = "whether to enable the plugin or not"
+        ),
+        CliOption(
+            optionName = warnOnPossibleAnnotations, valueDescription = "<true|false>",
+            description = "whether to warn when annotations can be added/changed"
         ),
         CliOption(
             optionName = wellKnownPureClasses, valueDescription = "<fully qualified class names delimited by underscores>",
@@ -56,6 +61,7 @@ class PurityCommandLineProcessor : CommandLineProcessor {
         configuration: CompilerConfiguration
     ) = when (option.optionName) {
         enabled -> configuration.put(KEY_ENABLED, value.toBoolean())
+        warnOnPossibleAnnotations -> getConfig(configuration).warnOnPossibleAnnotations = value.toBoolean()
         wellKnownPureClasses -> getConfig(configuration).wellKnownPureClassesFromUser = stringToSet(value)
         wellKnownPureFunctions -> getConfig(configuration).wellKnownPureFunctionsFromUser = stringToSet(value)
         wellKnownReadonlyFunctions -> getConfig(configuration).wellKnownReadonlyFunctionsFromUser = stringToSet(value)
