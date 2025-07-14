@@ -34,7 +34,7 @@ fun correctReadonlyInterfaceOverrideUsage(): Boolean {
 }
 
 //
-//@Readonly
+@Readonly
 fun correctSequenceChainingPure(): String {
     return sequenceOf("Hello, ", "World!")
         .joinToString(separator = "")
@@ -129,11 +129,6 @@ fun main() {
         var internal = 3
         internal = 4
         return internal
-    }
-
-    @Readonly
-    fun unmarkedFunction(a: Int): Int {
-        return a * a
     }
 
 

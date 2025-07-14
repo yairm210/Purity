@@ -71,8 +71,8 @@ internal class PurityElementTransformer(
         if (isSuppressed(declaration)) return super.visitSimpleFunction(declaration)
 
         val functionDeclaredColoring = when {
-            PurityChecker.isMarkedAsPure(declaration, purityConfig) -> FunctionPurity.Pure
-            PurityChecker.isReadonly(declaration, purityConfig) -> FunctionPurity.Readonly
+            FunctionPurityChecker.isMarkedAsPure(declaration, purityConfig) -> FunctionPurity.Pure
+            FunctionPurityChecker.isReadonly(declaration, purityConfig) -> FunctionPurity.Readonly
             else -> FunctionPurity.None
         }
         val messageCollector = if (functionDeclaredColoring == FunctionPurity.None) MessageCollector.NONE 
@@ -94,7 +94,7 @@ internal class PurityElementTransformer(
             }
             
             // if equal, no message; If less that declared, we already warn for each individual violation
-            if (functionDeclaredColoring < actualColoring) {
+            if (purityConfig.warnOnPossibleAnnotations && functionDeclaredColoring < actualColoring) {
                 val message = when (actualColoring) {
                     FunctionPurity.Pure -> "Function \"${declaration.name}\" can be marked with @Pure to indicate it is pure"
                     FunctionPurity.Readonly -> "Function \"${declaration.name}\" can be marked with @Readonly to indicate it is readonly"

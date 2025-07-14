@@ -31,7 +31,7 @@ fun getLocationForExpression(
     )!!
 }
 
-/** Checks a specific function.
+/** Checks all declarations of a specific function.
  * Warns every time a var is set a value, or an unpure function is called.
  * Vars that are created within the function are OK to set */
 class CheckFunctionPurityVisitor(
@@ -40,8 +40,8 @@ class CheckFunctionPurityVisitor(
     private val messageCollector: MessageCollector,
     private val purityConfig: PurityConfig,
     ) : IrElementVisitor<Unit, Unit> { // Returns whether this is an acceptable X function
-    var isReadonly = true
-    var isPure = true
+    private var isReadonly = true
+    private var isPure = true
     
     fun actualFunctionColoring(): FunctionPurity {
         return when {
@@ -110,10 +110,10 @@ class CheckFunctionPurityVisitor(
         }
         
         val calledFunctionPurity =  when {
-            PurityChecker.isMarkedAsPure(calledFunction, purityConfig) 
-                    || (callerIsConstructedInOurFunction() && PurityChecker.classMatches(calledFunction, wellKnownInternalStateClasses))
+            FunctionPurityChecker.isMarkedAsPure(calledFunction, purityConfig) 
+                    || (callerIsConstructedInOurFunction() && FunctionPurityChecker.classMatches(calledFunction, wellKnownInternalStateClasses))
                 -> FunctionPurity.Pure
-            PurityChecker.isReadonly(calledFunction, purityConfig) -> FunctionPurity.Readonly
+            FunctionPurityChecker.isReadonly(calledFunction, purityConfig) -> FunctionPurity.Readonly
             else -> FunctionPurity.None
         }
         

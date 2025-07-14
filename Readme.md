@@ -8,11 +8,11 @@ Install the plugin by adding the following to your `build.gradle.kts`:
 
 ```kotlin
 plugins {
-    id("io.github.yairm210.purity-plugin") version "0.0.20"
+    id("io.github.yairm210.purity-plugin") version "0.0.21"
 }
 
 dependencies {
-  compileOnly("io.github.yairm210:purity-annotations:0.0.20")
+  compileOnly("io.github.yairm210:purity-annotations:0.0.21")
 }
 ```
 
@@ -45,7 +45,9 @@ fun readonlyFunction(list: List<String>): Int {
 
 Any violation of these rules creates a compilation error.
 
-### Marking external classes
+### Optional configuration
+
+#### Marking external classes
 
 To support idiomatic Kotlin, Purity recognizes pure and readonly functions of well-known classes.
 
@@ -59,7 +61,20 @@ configure<PurityConfiguration> { // All of these are examples that are already c
   wellKnownPureFunctions = setOf("kotlin.collections.listOf")
   wellKnownReadonlyFunctions = setOf("java.util.EnumMap.get")
 }
+```
 
+#### Warn where annotations can be added 
+
+By default, Purity only checks that functions are at least as strict as declared.
+Once most of the code has been annotated, you may wish to see what other functions are strict enough to accept annotations,
+  to 'lock them in' to their current purity level.
+
+```kotlin
+import yairm210.purity.PurityConfiguration // at the top of your build.gradle.kts
+
+configure<PurityConfiguration> { 
+  warnOnPossibleAnnotations = true
+}
 ```
 
 ### Suppressing validity checks

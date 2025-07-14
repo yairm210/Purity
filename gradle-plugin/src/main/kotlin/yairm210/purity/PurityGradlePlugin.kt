@@ -9,6 +9,8 @@ import org.jetbrains.kotlin.gradle.plugin.SubpluginOption
 
 open class PurityConfiguration {
     var enabled: Boolean = true
+    /** If true, adds warnings where @Readonly or @Pure annotations can be added */
+    var warnOnPossibleAnnotations: Boolean = false
     /** Fully-qualified names of classes where all functions are pure */
     var wellKnownPureClasses = setOf<String>()
     /** Fully-qualified names of pure functions */
@@ -23,7 +25,7 @@ class PurityGradlePlugin : KotlinCompilerPluginSupportPlugin {
     companion object {
         const val COMPILER_PLUGIN_GROUP_NAME = "io.github.yairm210"
         const val ARTIFACT_NAME = "purity-compiler-plugin"
-        const val VERSION_NUMBER = "0.0.20"
+        const val VERSION_NUMBER = "0.0.21"
     }
 
     private var gradleExtension : PurityConfiguration = PurityConfiguration()
@@ -34,6 +36,7 @@ class PurityGradlePlugin : KotlinCompilerPluginSupportPlugin {
             val options = mutableListOf(
                 // TODO: Find a way to sync the key names between projects - other side is in PurityCommandLineProcessor
                 SubpluginOption("enabled", gradleExtension.enabled.toString()),
+                SubpluginOption("warnOnPossibleAnnotations", gradleExtension.warnOnPossibleAnnotations.toString()),
                 SubpluginOption("wellKnownPureClasses", gradleExtension.wellKnownPureClasses.joinToString("_")),
                 SubpluginOption("wellKnownPureFunctions", gradleExtension.wellKnownPureFunctions.joinToString("_")),
                 SubpluginOption("wellKnownReadonlyFunctions", gradleExtension.wellKnownReadonlyFunctions.joinToString("_")),
