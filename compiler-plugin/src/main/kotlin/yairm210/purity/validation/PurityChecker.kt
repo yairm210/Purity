@@ -103,7 +103,14 @@ object PurityChecker {
         if (statement !is IrReturn) return false
         val value = statement.value
 
-        if (value is IrGetValue) return true
+        if (value is IrGetValue) return true // function local variable access
+        
+        // getter for a field e.g. this.varvar
+        if (value is IrSimpleFunction && value.isPropertyAccessor
+            && value.correspondingPropertySymbol!!.owner.getter == value // getter not setter
+            && value.dispatchReceiverParameter is IrGetValue // has a receiver parameter (this)
+            ) 
+            return true
 
         return false
     }

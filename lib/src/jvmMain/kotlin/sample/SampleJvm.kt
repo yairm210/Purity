@@ -40,6 +40,18 @@ fun correctSequenceChainingPure(): String {
         .joinToString(separator = "")
 }
 
+class A{
+    var x = 5
+    @Readonly
+    fun getXX() = x
+}
+
+
+class B{
+    val x = 5
+    @Pure
+    fun getXX() = x
+}
 
 var enumMap = EnumMap<MyEnum, String>(MyEnum::class.java)
 
