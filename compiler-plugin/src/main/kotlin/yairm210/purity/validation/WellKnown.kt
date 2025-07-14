@@ -31,6 +31,8 @@ val wellKnownPureClasses = setOf(
     "kotlin.ranges.CharRange",
     "kotlin.ranges.FloatRange",
     "kotlin.ranges.DoubleRange",
+    
+    "kotlin.enums.EnumEntries",
 )
 
 // Where possible, use interfaces that cover a lot of classes
@@ -59,6 +61,14 @@ fun isWellKnownIterableOrSequenceFunction(fqname: String): Boolean {
 
 val wellKnownPureFunctions = setOf(
     "kotlin.internal.ir.CHECK_NOT_NULL", // AKA !!
+
+    "kotlin.let",
+    "kotlin.run",
+    "kotlin.also",
+    "kotlin.apply",
+    "kotlin.takeIf",
+    "kotlin.takeUnless",
+    
     // Alas, not all of kotlin.collections is pure... 
     "kotlin.collections.listOf",
     "kotlin.collections.setOf",
@@ -70,8 +80,8 @@ val wellKnownPureFunctions = setOf(
 )
 
 val wellKnownPureFunctionsPrefixes = listOf(
-    "kotlin.sequences.",
-    "kotlin.text."
+    "kotlin.text.",
+    "kotlin.ranges.",
 )
 
 /** Classes that hold state internally.
