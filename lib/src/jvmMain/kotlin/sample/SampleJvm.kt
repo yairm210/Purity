@@ -128,6 +128,14 @@ fun main() {
     fun setsInternalVariable(): Int {
         var internal = 3
         internal = 4
+        val seq = sequence<String> {
+            // Subscope can alter its vars and function vars
+            var internal2 = 0
+            yield("Hello")
+            yield("World")
+            internal2 += 1
+            internal += 1
+        }
         return internal
     }
 

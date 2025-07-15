@@ -14,6 +14,7 @@ import org.jetbrains.kotlin.ir.expressions.IrSetValue
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
 import org.jetbrains.kotlin.ir.util.fileEntry
 import org.jetbrains.kotlin.ir.util.fqNameForIrSerialization
+import org.jetbrains.kotlin.ir.util.parents
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 import yairm210.purity.PurityConfig
 
@@ -50,14 +51,21 @@ class CheckFunctionPurityVisitor(
             else -> FunctionPurity.None
         }
     }
+    
+    private fun varCreatedInFunction(varValueDeclaration: IrValueDeclaration): Boolean {
+        // If the variable is created in this function that's ok
+        // Contains, because if e.g. we create a sequence{} in a function and define the variable in the sequence, it's the parent
+        return function in varValueDeclaration.parents
+    }
 
     // Iterate over IR tree and warn on each var set where the var is not created within this function
     override fun visitSetValue(expression: IrSetValue, data: Unit) {
         // Not sure if we can assume owner is set at this point :think:
         val varValueDeclaration: IrValueDeclaration = expression.symbol.owner
         
-        // If the variable is created in this function that's ok
-        if (varValueDeclaration is IrVariable && varValueDeclaration.isVar && varValueDeclaration.parent != function) {
+        
+        if (varValueDeclaration is IrVariable && varValueDeclaration.isVar
+            && !varCreatedInFunction(varValueDeclaration)) { 
             isReadonly = false
             isPure = false
 
@@ -74,7 +82,8 @@ class CheckFunctionPurityVisitor(
         val varValueDeclaration: IrValueDeclaration = expression.symbol.owner
         
         // If the variable is created in this function that's ok
-        if (varValueDeclaration is IrVariable && varValueDeclaration.isVar && varValueDeclaration.parent != function) {
+        if (varValueDeclaration is IrVariable && varValueDeclaration.isVar
+            && !varCreatedInFunction(varValueDeclaration)) {
             isPure = false
 
             if (declaredFunctionPurity == FunctionPurity.Pure) {

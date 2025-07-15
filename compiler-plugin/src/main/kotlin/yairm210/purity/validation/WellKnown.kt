@@ -77,6 +77,9 @@ val wellKnownPureFunctions = setOf(
     "kotlin.collections.emptyList",
     "kotlin.collections.emptySet",
     "kotlin.collections.emptyMap",
+    
+    "kotlin.sequences.sequence",
+    "kotlin.sequences.SequenceScope.yield",
 )
 
 val wellKnownPureFunctionsPrefixes = listOf(
@@ -88,12 +91,6 @@ val wellKnownPureFunctionsPrefixes = listOf(
  * This means that if this function created that class, and it does not leak, it can call all functions on it and be considered pure
  */
 val wellKnownInternalStateClasses = setOf(
-    "kotlin.collections.ArrayList",
-    "kotlin.collections.HashMap",
-    "kotlin.collections.LinkedHashMap",
-    "kotlin.collections.HashSet",
-    "kotlin.collections.LinkedHashSet",
-    "kotlin.text.StringBuilder",
     "java.lang.StringBuilder",
     "java.util.EnumMap",
     "java.util.HashMap",
