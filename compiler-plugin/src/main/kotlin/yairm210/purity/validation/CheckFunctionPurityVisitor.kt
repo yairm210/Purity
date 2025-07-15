@@ -12,10 +12,9 @@ import org.jetbrains.kotlin.ir.expressions.IrCall
 import org.jetbrains.kotlin.ir.expressions.IrGetValue
 import org.jetbrains.kotlin.ir.expressions.IrSetValue
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
-import org.jetbrains.kotlin.ir.util.fileEntry
-import org.jetbrains.kotlin.ir.util.fqNameForIrSerialization
-import org.jetbrains.kotlin.ir.util.parents
+import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
+import org.jetbrains.kotlin.name.FqName
 import yairm210.purity.PurityConfig
 
 
@@ -110,7 +109,7 @@ class CheckFunctionPurityVisitor(
         fun callerIsConstructedInOurFunction(): Boolean {
             return false
             //  
-            return expression.dispatchReceiver is IrGetValue &&
+            return expression.extensionReceiver is IrGetValue &&
                     // is val
                     (expression.dispatchReceiver as IrGetValue).symbol.owner.let { it is IrVariable && !it.isVar }
                     // Is declared in our function
@@ -118,11 +117,26 @@ class CheckFunctionPurityVisitor(
                     // Val is set to result of constructor - TODO
         }
         
+        fun representsImmutable(irGetValue: IrGetValue): Boolean {
+            val irValueDeclaration = irGetValue.symbol.owner
+            return irValueDeclaration is IrVariable && !irValueDeclaration.isVar
+                    && irValueDeclaration.hasAnnotation(FqName("yairm210.purity.annotations.Immutable"))
+        }
+        
         val calledFunctionPurity =  when {
+            // Pure function
             FunctionPurityChecker.isMarkedAsPure(calledFunction, purityConfig) 
                     || (callerIsConstructedInOurFunction() && FunctionPurityChecker.classMatches(calledFunction, wellKnownInternalStateClasses))
                 -> FunctionPurity.Pure
+            
+            // Readonly functions on immutable variables, are considered pure
+            ((expression.dispatchReceiver as? IrGetValue)?.let { representsImmutable(it) } == true
+                    || (expression.extensionReceiver as? IrGetValue)?.let { representsImmutable(it) } == true
+                    )
+                    && FunctionPurityChecker.isReadonly(calledFunction, purityConfig) -> FunctionPurity.Pure
+            
             FunctionPurityChecker.isReadonly(calledFunction, purityConfig) -> FunctionPurity.Readonly
+            
             else -> FunctionPurity.None
         }
         

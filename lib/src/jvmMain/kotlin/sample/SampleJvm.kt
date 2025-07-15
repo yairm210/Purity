@@ -1,5 +1,6 @@
 package sample
 
+import yairm210.purity.annotations.Immutable
 import yairm210.purity.annotations.Pure
 import yairm210.purity.annotations.Readonly
 import java.util.*
@@ -139,6 +140,15 @@ fun main() {
         return internal
     }
 
+    @Immutable
+    val immutableList = listOf(1,2,3)
+    
+    @Pure
+    fun readImmutable(index: Int): Int {
+        immutableList.filter { it > 2 } // allowed as 'extensionReceiver is @Immutable'
+        return immutableList[index] // allowed as 'dispatchReceiver is @Immutable'
+    }
+    
 
     val arrayList = ArrayList<String>()
     // This should NOT be considered for "modify internal state" checks - we didn't construct the ArrayList!
