@@ -85,6 +85,7 @@ val wellKnownPureFunctions = setOf(
 val wellKnownPureFunctionsPrefixes = listOf(
     "kotlin.text.",
     "kotlin.ranges.",
+    "kotlin.math.",
 )
 
 /** Classes that hold state internally.
