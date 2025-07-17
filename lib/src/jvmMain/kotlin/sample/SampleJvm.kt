@@ -166,4 +166,10 @@ class SampleClass {
     fun pureFunction(int: Int): Int {
         return immutableMap[int] ?: 0
     }
+    
+    // Autorecognized as pure
+    fun returnMap() = immutableMap
+    
+    @Pure
+    fun getReturnMap() = returnMap()
 }
