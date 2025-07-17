@@ -22,6 +22,7 @@ val wellKnownPureClasses = setOf(
     "kotlin.Long",
     "kotlin.Float",
     "kotlin.Double",
+    "kotlin.Number",
     "kotlin.Boolean",
     "kotlin.Char",
     "kotlin.String",

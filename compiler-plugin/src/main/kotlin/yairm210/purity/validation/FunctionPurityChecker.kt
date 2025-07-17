@@ -2,10 +2,7 @@
 package yairm210.purity.validation
 
 import org.jetbrains.kotlin.ir.declarations.*
-import org.jetbrains.kotlin.ir.expressions.IrConst
-import org.jetbrains.kotlin.ir.expressions.IrGetValue
-import org.jetbrains.kotlin.ir.expressions.IrReturn
-import org.jetbrains.kotlin.ir.expressions.IrSyntheticBody
+import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.name.FqName
@@ -79,9 +76,7 @@ object FunctionPurityChecker {
 
         if (isSingleStatementReturnReadonly(function)) return true
 
-        if (function.isPropertyAccessor
-            && (function as IrSimpleFunction).correspondingPropertySymbol!!.owner.getter == function
-        ) return true
+        if (function.isGetter) return true
 
         return false
     }
@@ -107,11 +102,7 @@ object FunctionPurityChecker {
         if (value is IrGetValue) return true // function local variable access
         
         // getter for a field e.g. this.varvar
-        if (value is IrSimpleFunction && value.isPropertyAccessor
-            && value.correspondingPropertySymbol!!.owner.getter == value // getter not setter
-            && value.dispatchReceiverParameter is IrGetValue // has a receiver parameter (this)
-            ) 
-            return true
+        if (value is IrCall && value.symbol.owner.isGetter) return true
 
         return false
     }
@@ -126,6 +117,9 @@ object FunctionPurityChecker {
         val value = statement.value
         if (value is IrConst<*>) return true
         if (value is IrGetValue && !value.symbol.owner.let { it is IrVariable && it.isVar }) return true
+
+        if (value is IrCall && value.symbol.owner.isGetter && 
+            value.symbol.owner.correspondingPropertySymbol?.owner?.isVar == false) return true
 
         return false
     }

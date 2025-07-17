@@ -8,11 +8,11 @@ Install the plugin by adding the following to your `build.gradle.kts`:
 
 ```kotlin
 plugins {
-    id("io.github.yairm210.purity-plugin") version "0.0.25"
+    id("io.github.yairm210.purity-plugin") version "0.0.26"
 }
 
 dependencies {
-  compileOnly("io.github.yairm210:purity-annotations:0.0.25")
+  compileOnly("io.github.yairm210:purity-annotations:0.0.26")
 }
 ```
 
@@ -81,6 +81,9 @@ fun alterExternallyDeclaredInnerStateClass() {
 }
 ```
 
+Unfortunately, since it's only functions on the val itself that are allowed, we cannot chain calls. 
+The best be can do is assign the value back to a variable and then use it.
+
 Note that this is a promise, and is abusable, for the same reason it's not automatically determinable. Consider the following abuse example:
 
 ```kotlin
@@ -93,6 +96,13 @@ fun alterExternallyDeclaredInnerStateClass() {
   localArrayList.add("string") // Anything is allowed on a LocalState variable
 }
 ```
+
+### Autorecognized functions
+
+Some functions are simple enough that they don't even need to be marked.
+
+- functions that return a const are recognized as Pure (`fun getNum() = 42`)
+- functions that return a property of this class (`fun getThing() = innerThing`) are recognized as Readonly if var, and Pure if val
 
 ### Optional configuration
 
