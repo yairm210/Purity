@@ -5,10 +5,9 @@ import org.jetbrains.kotlin.cli.common.messages.CompilerMessageLocation
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
 import org.jetbrains.kotlin.ir.IrElement
-import org.jetbrains.kotlin.ir.declarations.IrFunction
-import org.jetbrains.kotlin.ir.declarations.IrValueDeclaration
-import org.jetbrains.kotlin.ir.declarations.IrVariable
+import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.IrCall
+import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.IrGetValue
 import org.jetbrains.kotlin.ir.expressions.IrSetValue
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
@@ -29,6 +28,10 @@ fun getLocationForExpression(
         column = lineAndColumn.column + 1, // Convert to 1-indexed
         lineContent = null
     )!!
+}
+
+fun IrAnnotationContainer.isDeclaredImmutable(): Boolean {
+    return this.hasAnnotation(FqName("yairm210.purity.annotations.Immutable"))
 }
 
 /** Checks all declarations of a specific function.
@@ -109,18 +112,32 @@ class CheckFunctionPurityVisitor(
         fun callerIsConstructedInOurFunction(): Boolean {
             return false
             //  
-            return expression.extensionReceiver is IrGetValue &&
+            val expressionDispatchReceiver = expression.dispatchReceiver
+            return expressionDispatchReceiver is IrGetValue &&
                     // is val
-                    (expression.dispatchReceiver as IrGetValue).symbol.owner.let { it is IrVariable && !it.isVar }
+                    expressionDispatchReceiver.symbol.owner.let { it is IrVariable && !it.isVar } &&
                     // Is declared in our function
-                    (expression.dispatchReceiver as IrGetValue).symbol.owner.parent == function
+                    expressionDispatchReceiver.symbol.owner.parent == function
                     // Val is set to result of constructor - TODO
         }
         
-        fun representsImmutable(irGetValue: IrGetValue): Boolean {
-            val irValueDeclaration = irGetValue.symbol.owner
-            return irValueDeclaration is IrVariable && !irValueDeclaration.isVar
-                    && irValueDeclaration.hasAnnotation(FqName("yairm210.purity.annotations.Immutable"))
+        
+        // For now, we don't allow vars to be represented by @Immutable - we should warn against this...
+        fun representsImmutable(irExpression: IrExpression): Boolean {
+            if (irExpression is IrGetValue) { // local function variable
+                val irValueDeclaration = irExpression.symbol.owner
+                return irValueDeclaration is IrVariable && !irValueDeclaration.isVar // A val
+                        && irValueDeclaration.isDeclaredImmutable()
+            }
+            if (irExpression is IrCall) {
+                return irExpression.symbol.owner.let {
+                    it is IrSimpleFunction && it == it.correspondingPropertySymbol?.owner?.getter // A getter..
+                            // ... for a property that is immutable
+                            && it.correspondingPropertySymbol?.owner?.isVar == false
+                            && it.correspondingPropertySymbol?.owner?.isDeclaredImmutable() == true
+                }  
+            }
+            return false
         }
         
         val calledFunctionPurity =  when {
@@ -130,9 +147,7 @@ class CheckFunctionPurityVisitor(
                 -> FunctionPurity.Pure
             
             // Readonly functions on immutable variables, are considered pure
-            ((expression.dispatchReceiver as? IrGetValue)?.let { representsImmutable(it) } == true
-                    || (expression.extensionReceiver as? IrGetValue)?.let { representsImmutable(it) } == true
-                    )
+            (expression.dispatchReceiver ?: expression.extensionReceiver)?.let { representsImmutable(it) } == true
                     && FunctionPurityChecker.isReadonly(calledFunction, purityConfig) -> FunctionPurity.Pure
             
             FunctionPurityChecker.isReadonly(calledFunction, purityConfig) -> FunctionPurity.Readonly

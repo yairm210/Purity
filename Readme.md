@@ -8,11 +8,11 @@ Install the plugin by adding the following to your `build.gradle.kts`:
 
 ```kotlin
 plugins {
-    id("io.github.yairm210.purity-plugin") version "0.0.23"
+    id("io.github.yairm210.purity-plugin") version "0.0.24"
 }
 
 dependencies {
-  compileOnly("io.github.yairm210:purity-annotations:0.0.23")
+  compileOnly("io.github.yairm210:purity-annotations:0.0.24")
 }
 ```
 
@@ -44,6 +44,11 @@ fun readonlyFunction(list: List<String>): Int {
   - Call other non-readonly functions (pure functions are considered readonly as well)
 
 Any violation of these rules creates a compilation error.
+
+
+### Immutable 
+
+
 
 ### Optional configuration
 
@@ -92,60 +97,6 @@ fun actsAsPure(): Int {
 }
 ```
 
-## Development
-
-To test the plugin on /lib, run `./gradlew :lib:clean :lib:build` - the plugin is only active when the build cache is changed
-
-To test on other projects, first increment the version (see below) - otherwise the plugin from the gradle plugin repository will be used.
-
-To publish the *compiler plugin* locally:
-- Comment out the `signAllPublications()` line in `compiler-plugin/build.gradle.kts` if you don't have the signing keys set up
-- `./gradlew :compiler-plugin:publishToMavenLocal`
-- It should now be available in `~/.m2/repository/io/github/yairm210/compiler-compiler-plugin/<version>`
-
-To publish the gradle plugin locally:
-- `./gradlew :gradle-plugin:build`
-- It should now be available in `~/.m2/repository/io/github/yairm210/gradle-plugin/<version>`
-
-To use the local plugin in another local project, add to `build.gradle.kts`:
-
-```kotlin
-plugins {
-    id("io.github.yairm210.purity-plugin") version "<version>" // Require the gradle plugin
-}
-repositories {
-    mavenLocal() // To get the compiler plugin locally
-}
-```
-
-And add to `settings.gradle.kts`:
-
-```kotlin
-pluginManagement {
-    repositories {
-        mavenLocal() // To get the compiler plugin locally
-        gradlePluginPortal() // So other plugins can be resolved
-    }
-}
-```
-### Project Structure
-
-- <kbd>lib</kbd> - A Kotlin Multiplatform project which applies a gradle plugin (compiler.plugin.helloworld) which triggers the compiler plugin.
-- <kbd>compiler-plugin</kbd> - This module contains the Kotlin Compiler Plugin
-- <kbd>gradle-plugin</kbd> - This module contains the gradle plugin which trigger the compiler plugin
-
-
-### Versioning
-
-Gradle plugins used in other projects must be included in settings.gradle.kts as 'includeBuild', so they'll be available as a plugin.
-
-This unfortunately precludes them from depending on buildSrc for a single source of truth for the version.
-Thus, the version must be updated in multiple places:
-
-- Update version in compiler plugin - `compiler-plugin/build.gradle.kts`
-- Update version in gradle plugin - `PurityGradlePlugin.kt`
-- Update version in `gradle-plugin/build.gradle.kts`
-
 ## Acknowledgments
 
 Projects that helped me understand how to setup the project:
@@ -153,5 +104,7 @@ Projects that helped me understand how to setup the project:
 
 ## TODO
 
-- Compare with Expression.isPure() - can this be used instead of isUnchanging? What's the difference, practically? 
-- 
+- Handle function overrides - ensure that the overriding function is at least as strict as the overridden one 
+- Handle function calls in lambdas - ensure that the lambda is at least as strict as the function it is passed to
+- Allow mutating changes on function-local parameters (@Local annotation?)
+  - Ensure that the expression for the local is pure?
