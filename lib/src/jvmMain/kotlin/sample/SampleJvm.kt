@@ -158,3 +158,12 @@ fun main() {
         existingArrayList.remove("string")
     }
 }
+
+class SampleClass {
+    @Immutable
+    val immutableMap = mapOf(1 to 2, 3 to 4)
+    @Pure
+    fun pureFunction(int: Int): Int {
+        return immutableMap[int] ?: 0
+    }
+}
