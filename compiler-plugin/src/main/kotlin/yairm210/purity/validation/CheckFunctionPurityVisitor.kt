@@ -123,18 +123,17 @@ class CheckFunctionPurityVisitor(
         
         
         // For now, we don't allow vars to be represented by @Immutable - we should warn against this...
-        fun representsImmutable(irExpression: IrExpression): Boolean {
+        fun representsAnnotationBearer(irExpression: IrExpression, annotation: String): Boolean {
             if (irExpression is IrGetValue) { // local function variable
                 val irValueDeclaration = irExpression.symbol.owner
-                return irValueDeclaration is IrVariable && !irValueDeclaration.isVar // A val
-                        && irValueDeclaration.isDeclaredImmutable()
+                return irValueDeclaration is IrVariable
+                        && irValueDeclaration.hasAnnotation(FqName(annotation))
             }
             if (irExpression is IrCall) {
                 return irExpression.symbol.owner.let {
                     it is IrSimpleFunction && it == it.correspondingPropertySymbol?.owner?.getter // A getter..
                             // ... for a property that is immutable
-                            && it.correspondingPropertySymbol?.owner?.isVar == false
-                            && it.correspondingPropertySymbol?.owner?.isDeclaredImmutable() == true
+                            && it.correspondingPropertySymbol?.owner?.hasAnnotation(FqName(annotation)) == true
                 }  
             }
             return false
@@ -146,9 +145,16 @@ class CheckFunctionPurityVisitor(
                     || (callerIsConstructedInOurFunction() && FunctionPurityChecker.classMatches(calledFunction, wellKnownInternalStateClasses))
                 -> FunctionPurity.Pure
             
-            // Readonly functions on immutable variables, are considered pure
-            (expression.dispatchReceiver ?: expression.extensionReceiver)?.let { representsImmutable(it) } == true
-                    && FunctionPurityChecker.isReadonly(calledFunction, purityConfig) -> FunctionPurity.Pure
+            // Readonly functions on Immutable vals, are considered pure
+            (expression.dispatchReceiver ?: expression.extensionReceiver)
+                ?.let { representsAnnotationBearer(it, "yairm210.purity.annotations.Immutable") } == true
+                    && FunctionPurityChecker.isReadonly(calledFunction, purityConfig)
+                -> FunctionPurity.Pure
+            
+            // All functions on LocalState variables are considered pure
+            (expression.dispatchReceiver ?: expression.extensionReceiver)
+                ?.let { representsAnnotationBearer(it, "yairm210.purity.annotations.LocalState") } == true
+                    -> FunctionPurity.Pure
             
             FunctionPurityChecker.isReadonly(calledFunction, purityConfig) -> FunctionPurity.Readonly
             

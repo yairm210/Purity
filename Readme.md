@@ -8,11 +8,11 @@ Install the plugin by adding the following to your `build.gradle.kts`:
 
 ```kotlin
 plugins {
-    id("io.github.yairm210.purity-plugin") version "0.0.24"
+    id("io.github.yairm210.purity-plugin") version "0.0.25"
 }
 
 dependencies {
-  compileOnly("io.github.yairm210:purity-annotations:0.0.24")
+  compileOnly("io.github.yairm210:purity-annotations:0.0.25")
 }
 ```
 
@@ -46,13 +46,57 @@ fun readonlyFunction(list: List<String>): Int {
 Any violation of these rules creates a compilation error.
 
 
-### Immutable 
+### Marking variables as Immutable
 
+Many helpful functions, especially on collections, are readonly - because the function itself is the same regardless of the list it's iterating.
 
+These functions are however deterministic - so when run on an immutable value, they will always return the same result, i.e. are Pure.
+
+You can mark vals as Immutable to allow recognizing readonly functions run on them, as pure: 
+
+```kotlin
+@Immutable
+val immutableMap = mapOf(1 to 2, 3 to 4)
+
+@Pure
+fun pureFunction(int: Int): Int {
+    return immutableMap[int] ?: 0
+}
+```
+
+### Marking variables as LocalState
+
+Function purity is determined by its outer boundary - given the same call, return the same result. How we generate that result is up to us
+
+One way many functions work is by building up a *mutable* object - a list, a map, etc - and returning it.
+
+Since these are by definition *mutating* functions, we need to mark the function variable as local: 
+
+```kotlin
+@Pure
+fun alterExternallyDeclaredInnerStateClass() {
+  @LocalState
+  val newArrayList = ArrayList<String>()
+  newArrayList.add("string") // Anything is allowed on a LocalState variable
+}
+```
+
+Note that this is a promise, and is abusable, for the same reason it's not automatically determinable. Consider the following abuse example:
+
+```kotlin
+val existingArrayList = ArrayList<String>()
+
+@Pure
+fun alterExternallyDeclaredInnerStateClass() {
+  @LocalState // False, and leads to broken contract!
+  val localArrayList = existingArrayList // val access is allowed
+  localArrayList.add("string") // Anything is allowed on a LocalState variable
+}
+```
 
 ### Optional configuration
 
-#### Marking external classes
+#### Handling external classes
 
 To support idiomatic Kotlin, Purity recognizes pure and readonly functions of well-known classes.
 
