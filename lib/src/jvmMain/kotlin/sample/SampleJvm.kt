@@ -1,6 +1,7 @@
 package sample
 
 import yairm210.purity.annotations.Immutable
+import yairm210.purity.annotations.LocalState
 import yairm210.purity.annotations.Pure
 import yairm210.purity.annotations.Readonly
 import java.util.*
@@ -148,14 +149,13 @@ fun main() {
         immutableList.filter { it > 2 } // allowed as 'extensionReceiver is @Immutable'
         return immutableList[index] // allowed as 'dispatchReceiver is @Immutable'
     }
-    
-
-    val arrayList = ArrayList<String>()
+     
     // This should NOT be considered for "modify internal state" checks - we didn't construct the ArrayList!
-    //@Pure
+    @Pure
     fun alterExternallyDeclaredInnerStateClass() {
-        val existingArrayList = arrayList
-        existingArrayList.remove("string")
+        @LocalState
+        val existingArrayList = ArrayList<String>()
+        existingArrayList.remove("string") // Anything is allowed on a LocalState variable
     }
 }
 
