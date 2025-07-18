@@ -172,4 +172,6 @@ class SampleClass {
     
     @Pure
     fun getReturnMap() = returnMap()
+    
+    
 }
