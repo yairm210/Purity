@@ -1,6 +1,7 @@
 @file:OptIn(UnsafeDuringIrConstructionAPI::class)
 package yairm210.purity.validation
 
+import org.jetbrains.kotlin.backend.jvm.ir.replaceThisByStaticReference
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
@@ -102,7 +103,9 @@ object FunctionPurityChecker {
         if (value is IrGetValue) return true // function local variable access
         
         // getter for a field e.g. this.varvar
-        if (value is IrCall && value.symbol.owner.isGetter) return true
+        if (value is IrCall && value.symbol.owner.isGetter // <something>.property
+            && value.dispatchReceiver is IrGetValue  // <something> is a function local variable
+         ) return true
 
         return false
     }
@@ -117,9 +120,11 @@ object FunctionPurityChecker {
         val value = statement.value
         if (value is IrConst<*>) return true
         if (value is IrGetValue && !value.symbol.owner.let { it is IrVariable && it.isVar }) return true
-
-        if (value is IrCall && value.symbol.owner.isGetter && 
-            value.symbol.owner.correspondingPropertySymbol?.owner?.isVar == false) return true
+        
+        if (value is IrCall && value.symbol.owner.isGetter && // <something>.property 
+            value.dispatchReceiver is IrGetValue  // <something> is a function-local value, not variable
+                && !(value.dispatchReceiver as IrGetValue).symbol.owner.let { it is IrVariable && it.isVar }
+                && value.symbol.owner.correspondingPropertySymbol?.owner?.isVar == false) return true
 
         return false
     }
