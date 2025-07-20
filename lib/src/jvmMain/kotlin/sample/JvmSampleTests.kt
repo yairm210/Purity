@@ -167,6 +167,22 @@ class SampleClass {
     @Pure @TestExpectCompileError
     // returnMutableMap is recognized as readonly, not pure
     fun incorrectPureGetReturnMutableMap() = returnMutableMap() // This is not pure, because it returns a mutable map
-    
-    
+}
+
+
+interface AreaCalculator {
+    @Pure
+    fun area(): Int
+}
+
+class Square(val width: Int) : AreaCalculator {
+    // Should be defined as pure since it overrides a pure function
+    override fun area(): Int {
+        return width * width
+    }
+
+    @Pure
+    fun otherFunction(): Int {
+        return area()
+    }
 }

@@ -1,7 +1,6 @@
 @file:OptIn(UnsafeDuringIrConstructionAPI::class)
 package yairm210.purity.validation
 
-import org.jetbrains.kotlin.backend.jvm.ir.replaceThisByStaticReference
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
@@ -16,14 +15,17 @@ object FunctionPurityChecker {
         val parentClassIdentifier = function.parent.fqNameForIrSerialization.asString()
         return parentClassIdentifier in wellKnownClasses
     }
-
+    
+    private val pureAnnotationFqName = FqName("yairm210.purity.annotations.Pure")
+    private val intrinsicConstEvaluationFqName = FqName("kotlin.internal.IntrinsicConstEvaluation")
+    private val readonlyAnnotationFqName = FqName("yairm210.purity.annotations.Readonly")
 
     fun isMarkedAsPure(function: IrFunction, purityConfig: PurityConfig): Boolean {
         // Marked by @Pure
-        if (function.hasAnnotation(FqName("yairm210.purity.annotations.Pure"))) return true // Custom annotation for readonly functions
+        if (function.hasAnnotation(pureAnnotationFqName)) return true // Custom annotation for readonly functions
         
         // Simple values like int + int -> plus(int, int), are marked thus
-        val constEvaluation = function.getAnnotation(FqName("kotlin.internal.IntrinsicConstEvaluation"))
+        val constEvaluation = function.getAnnotation(intrinsicConstEvaluationFqName)
         if (constEvaluation != null) return true
 
         val fullyQualifiedClassName = function.parent.fqNameForIrSerialization.asString()
@@ -39,6 +41,10 @@ object FunctionPurityChecker {
         if (function.isPropertyAccessor
             && !(function as IrSimpleFunction).correspondingPropertySymbol!!.owner.isVar
         ) return true
+        
+        // Check if we're overriding a marked @Pure function
+        if (function is IrSimpleFunction && getAllOverriddenFunctions(function).any { it.hasAnnotation(pureAnnotationFqName) })
+            return true
 
         if (isSingleStatementReturnPure(function)) return true
 
@@ -72,6 +78,7 @@ object FunctionPurityChecker {
                 val overriddenFunctionName = overriddenFunction.fqNameForIrSerialization.asString()
                 if (overriddenFunctionName in wellKnownReadonlyFunctions) return true
                 if (overriddenFunctionName in purityConfig.wellKnownReadonlyFunctionsFromUser) return true
+                if (overriddenFunction.hasAnnotation(readonlyAnnotationFqName)) return true // We're overriding a @Readonly function
             }
         }
 
