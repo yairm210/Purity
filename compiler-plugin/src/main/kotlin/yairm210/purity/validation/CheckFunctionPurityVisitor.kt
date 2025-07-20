@@ -45,6 +45,8 @@ class CheckFunctionPurityVisitor(
     ) : IrElementVisitor<Unit, Unit> { // Returns whether this is an acceptable X function
     private var isReadonly = true
     private var isPure = true
+    val hasExpectCompileErrorAnnotation = function.hasAnnotation(FqName("yairm210.purity.annotations.TestExpectCompileError"))
+    private val errorSeverity = if(hasExpectCompileErrorAnnotation) CompilerMessageSeverity.WARNING else CompilerMessageSeverity.ERROR
     
     fun actualFunctionColoring(): FunctionPurity {
         return when {
@@ -72,7 +74,7 @@ class CheckFunctionPurityVisitor(
             isPure = false
 
             messageCollector.report(
-                CompilerMessageSeverity.ERROR,
+                errorSeverity,
                 "Function \"${function.name}\" is marked as $declaredFunctionPurity but sets variable \"${varValueDeclaration.name}\"",
                 location = getLocationForExpression(function, expression)
             )
@@ -90,7 +92,7 @@ class CheckFunctionPurityVisitor(
 
             if (declaredFunctionPurity == FunctionPurity.Pure) {
                 messageCollector.report(
-                    CompilerMessageSeverity.ERROR,
+                    errorSeverity,
                     "Function \"${function.name}\" is marked as $declaredFunctionPurity but gets variable \"${varValueDeclaration.name}\"",
                     location = getLocationForExpression(function, expression) 
                 )
@@ -167,7 +169,7 @@ class CheckFunctionPurityVisitor(
         
         if (declaredFunctionPurity > calledFunctionPurity) {
             messageCollector.report(
-                CompilerMessageSeverity.ERROR,
+                errorSeverity,
                 "Function \"${function.name}\" is marked as $declaredFunctionPurity " +
                         "but calls non-$declaredFunctionPurity function \"${expression.symbol.owner.fqNameForIrSerialization}\"",
                 location = getLocationForExpression(function, expression)

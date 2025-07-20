@@ -45,9 +45,10 @@ val wellKnownReadonlyFunctions = setOf(
     "kotlin.collections.Map.containsValue",
     "kotlin.collections.Map.get",
     // Collection
-    "java.util.Collection.isEmpty",
-    "java.util.Collection.contains",
-    "java.util.Collection.size",
+    "java.util.AbstractCollection.contains",
+    "java.util.AbstractCollection.isEmpty",
+    "java.util.AbstractCollection.size",
+    "java.util.AbstractList.get",
 )
 
 // MOST of these are readonly, but some are unfortunately not. :(
