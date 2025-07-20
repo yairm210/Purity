@@ -30,9 +30,6 @@ fun getLocationForExpression(
     )!!
 }
 
-fun IrAnnotationContainer.isDeclaredImmutable(): Boolean {
-    return this.hasAnnotation(FqName("yairm210.purity.annotations.Immutable"))
-}
 
 /** Checks all declarations of a specific function.
  * Warns every time a var is set a value, or an unpure function is called.
@@ -133,7 +130,7 @@ class CheckFunctionPurityVisitor(
             }
             if (irExpression is IrCall) {
                 return irExpression.symbol.owner.let {
-                    it is IrSimpleFunction && it == it.correspondingPropertySymbol?.owner?.getter // A getter..
+                    it == it.correspondingPropertySymbol?.owner?.getter // A getter..
                             // ... for a property that is immutable
                             && it.correspondingPropertySymbol?.owner?.hasAnnotation(FqName(annotation)) == true
                 }  
@@ -143,14 +140,14 @@ class CheckFunctionPurityVisitor(
         
         val calledFunctionPurity =  when {
             // Pure function
-            FunctionPurityChecker.isMarkedAsPure(calledFunction, purityConfig) 
-                    || (callerIsConstructedInOurFunction() && FunctionPurityChecker.classMatches(calledFunction, wellKnownInternalStateClasses))
+            ExpectedFunctionPurityChecker.isMarkedAsPure(calledFunction, purityConfig) 
+                    || (callerIsConstructedInOurFunction() && ExpectedFunctionPurityChecker.classMatches(calledFunction, wellKnownInternalStateClasses))
                 -> FunctionPurity.Pure
             
             // Readonly functions on Immutable vals, are considered pure
             (expression.dispatchReceiver ?: expression.extensionReceiver)
                 ?.let { representsAnnotationBearer(it, "yairm210.purity.annotations.Immutable") } == true
-                    && FunctionPurityChecker.isReadonly(calledFunction, purityConfig)
+                    && ExpectedFunctionPurityChecker.isReadonly(calledFunction, purityConfig)
                 -> FunctionPurity.Pure
             
             // All functions on LocalState variables are considered pure
@@ -158,7 +155,7 @@ class CheckFunctionPurityVisitor(
                 ?.let { representsAnnotationBearer(it, "yairm210.purity.annotations.LocalState") } == true
                     -> FunctionPurity.Pure
             
-            FunctionPurityChecker.isReadonly(calledFunction, purityConfig) -> FunctionPurity.Readonly
+            ExpectedFunctionPurityChecker.isReadonly(calledFunction, purityConfig) -> FunctionPurity.Readonly
             
             else -> FunctionPurity.None
         }

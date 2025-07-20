@@ -71,8 +71,8 @@ internal class PurityElementTransformer(
         if (isSuppressed(declaration)) return super.visitSimpleFunction(declaration)
 
         val functionDeclaredColoring = when {
-            FunctionPurityChecker.isMarkedAsPure(declaration, purityConfig) -> FunctionPurity.Pure
-            FunctionPurityChecker.isReadonly(declaration, purityConfig) -> FunctionPurity.Readonly
+            ExpectedFunctionPurityChecker.isMarkedAsPure(declaration, purityConfig) -> FunctionPurity.Pure
+            ExpectedFunctionPurityChecker.isReadonly(declaration, purityConfig) -> FunctionPurity.Readonly
             else -> FunctionPurity.None
         }
         val messageCollector = if (functionDeclaredColoring == FunctionPurity.None) MessageCollector.NONE
