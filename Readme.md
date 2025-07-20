@@ -104,6 +104,33 @@ Some functions are simple enough that they don't even need to be marked.
 - functions that return a const are recognized as Pure (`fun getNum() = 42`)
 - functions that return a property of this class (`fun getThing() = innerThing`) are recognized as Readonly if var, and Pure if val
 
+### Inheritance
+
+Functions that override other functions, or implement interfaces, are automatically recognized as *at least as strict* as the overridden function.
+
+For a stupid example:
+
+```kotlin
+
+interface AreaCalculator {
+  @Pure
+  fun area(): Int
+}
+
+class Square(val width: Int) : AreaCalculator {
+  // Should be defined as pure since it overrides a pure function
+  override fun area(): Int {
+    return width * width
+  }
+
+  @Pure
+  fun otherFunction(): Int {
+    return area()
+  }
+}
+
+```
+
 ### Optional configuration
 
 #### Handling external classes
