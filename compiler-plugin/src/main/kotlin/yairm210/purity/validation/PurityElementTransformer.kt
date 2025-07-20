@@ -82,6 +82,16 @@ internal class PurityElementTransformer(
         declaration.accept(visitor, Unit)
         
         val actualColoring = visitor.actualFunctionColoring()
+        
+        if (visitor.hasExpectCompileErrorAnnotation) { // opposite land - fail is success, success is fail
+            if (actualColoring >= functionDeclaredColoring)
+                messageCollector.report(CompilerMessageSeverity.ERROR, 
+                    "Function \"${declaration.name}\" should fail on purity checks, but succeeds!",
+                    location = getLocationForExpression(declaration, declaration))
+            
+            return super.visitSimpleFunction(declaration)
+        }
+        
         if (functionDeclaredColoring != actualColoring){
             
             if (functionDeclaredColoring < actualColoring && 

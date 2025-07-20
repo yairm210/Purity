@@ -1,9 +1,6 @@
 package sample
 
-import yairm210.purity.annotations.Immutable
-import yairm210.purity.annotations.LocalState
-import yairm210.purity.annotations.Pure
-import yairm210.purity.annotations.Readonly
+import yairm210.purity.annotations.*
 import java.util.*
 import kotlin.collections.HashMap
 
@@ -19,14 +16,7 @@ enum class MyEnum {
     A, B
 }
 
-// Disabled due to implementation problems in callerIsConstructedInOurFunction, see there 
-//@Pure
-//fun correctLocalStateNonChainingPure(): String {
-//    val stringBuilder = StringBuilder()
-//    stringBuilder.append("Hello, ")
-//    stringBuilder.append("World!")
-//    return stringBuilder.toString()
-//}
+// 
 
 val map = HashMap<String, String>()
 
@@ -70,20 +60,10 @@ fun correctListChainingPure(): String {
         .joinToString(separator = " ")
 }
 
-//
-//data class MyDataClass(val a: Int, val b: String)
-//
-//interface MyInterface {
-//    fun doSomething(): String
-//}
 
-//
 fun main() {
     var external = 3
-
-
-    fun incorrectPureReturnsExternal() = external
-
+    
     // RIGHT: readonly, because reading external variables is allowed
     @Readonly
     fun correctReadonly(): Int {
@@ -92,37 +72,38 @@ fun main() {
         x[0]
         return external
     }
-
-    // WRONG: not pure, because it reads an external variable
-    @Pure @Suppress("purity")
-    fun incorrectPure(): Int {
-        return external
-    }
     
     @Pure
     fun give(a: Int): Int {
         return a
     }
+    
+    @Pure @TestExpectCompileError
+    fun readsExternalVar(): Int {
+        return external
+    }
 
-    @Pure @Suppress("purity")
-    fun untrustable(a: Int, b: Int): Int {
+    @Pure @TestExpectCompileError
+    fun setsExternalVar(a: Int, b: Int): Int {
         external = 4
         return a
+    }
+    
+    @Pure @TestExpectCompileError
+    fun callsReadonly(){
+        correctReadonly() // Pure functions cannot call readonly functions
     }
 
     @Pure
     fun getList() = listOf(1,2)
+    
+    @Readonly
+    fun callPureFunction() { // Readonly functions can call pure functions
+        getList().filter { it > 1 }
+    }
 
     fun Int.self(): Int {
         return this
-    }
-    
-    @Pure @Suppress("purity")
-    fun add(a: Int, b: Int): Int {
-        external = 4
-        untrustable(5, 6)
-        getList()
-        return a.self() + give(b) + 5 //untrustable(5,6)
     }
 
     // NOT reported as a problem since the variable is internal
@@ -142,17 +123,21 @@ fun main() {
     }
 
     @Immutable
-    val immutableList = listOf(1,2,3)
+    val immutableList = arrayListOf(1,2,3)
     
     @Pure
     fun readImmutable(index: Int): Int {
         immutableList.filter { it > 2 } // allowed as 'extensionReceiver is @Immutable'
         return immutableList[index] // allowed as 'dispatchReceiver is @Immutable'
     }
+    
+    @Pure @TestExpectCompileError
+    fun writeImmutable(){ // @Immutable only allows readonly functions to be considered pure, not write functions
+        immutableList.add(4) // This is not allowed, so this function is not pure
+    }
      
-    // This should NOT be considered for "modify internal state" checks - we didn't construct the ArrayList!
     @Pure
-    fun alterExternallyDeclaredInnerStateClass() {
+    fun alterInnerStateClass() {
         @LocalState
         val existingArrayList = ArrayList<String>()
         existingArrayList.remove("string") // Anything is allowed on a LocalState variable
@@ -172,6 +157,16 @@ class SampleClass {
     
     @Pure
     fun getReturnMap() = returnMap()
+    
+    var mutableMap = mutableMapOf(1 to 2, 3 to 4)
+    fun returnMutableMap() = mutableMap
+    
+    @Readonly
+    fun getReturnMutableMap() = returnMutableMap()
+    
+    @Pure @TestExpectCompileError
+    // returnMutableMap is recognized as readonly, not pure
+    fun incorrectPureGetReturnMutableMap() = returnMutableMap() // This is not pure, because it returns a mutable map
     
     
 }
