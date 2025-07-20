@@ -42,6 +42,8 @@ class CheckFunctionPurityVisitor(
     ) : IrElementVisitor<Unit, Unit> { // Returns whether this is an acceptable X function
     private var isReadonly = true
     private var isPure = true
+    private var hasErrored = false
+    
     val hasExpectCompileErrorAnnotation = function.hasAnnotation(FqName("yairm210.purity.annotations.TestExpectCompileError"))
     private val errorSeverity = if(hasExpectCompileErrorAnnotation) CompilerMessageSeverity.WARNING else CompilerMessageSeverity.ERROR
     
@@ -51,6 +53,15 @@ class CheckFunctionPurityVisitor(
             isReadonly -> FunctionPurity.Readonly
             else -> FunctionPurity.None
         }
+    }
+    
+    private fun report(message: String, element: IrElement) {
+        messageCollector.report(
+            errorSeverity,
+            message,
+            location = getLocationForExpression(function, element)
+        )
+        hasErrored = true
     }
     
     private fun varCreatedInFunction(varValueDeclaration: IrValueDeclaration): Boolean {
@@ -70,10 +81,9 @@ class CheckFunctionPurityVisitor(
             isReadonly = false
             isPure = false
 
-            messageCollector.report(
-                errorSeverity,
+            report(
                 "Function \"${function.name}\" is marked as $declaredFunctionPurity but sets variable \"${varValueDeclaration.name}\"",
-                location = getLocationForExpression(function, expression)
+                expression
             )
         }
         super.visitSetValue(expression, data)
@@ -88,10 +98,9 @@ class CheckFunctionPurityVisitor(
             isPure = false
 
             if (declaredFunctionPurity == FunctionPurity.Pure) {
-                messageCollector.report(
-                    errorSeverity,
+                report(
                     "Function \"${function.name}\" is marked as $declaredFunctionPurity but gets variable \"${varValueDeclaration.name}\"",
-                    location = getLocationForExpression(function, expression) 
+                    expression 
                 )
             }
         }
@@ -165,11 +174,10 @@ class CheckFunctionPurityVisitor(
         if (calledFunctionPurity < FunctionPurity.Readonly) isReadonly = false
         
         if (declaredFunctionPurity > calledFunctionPurity) {
-            messageCollector.report(
-                errorSeverity,
+            report(
                 "Function \"${function.name}\" is marked as $declaredFunctionPurity " +
                         "but calls non-$declaredFunctionPurity function \"${expression.symbol.owner.fqNameForIrSerialization}\"",
-                location = getLocationForExpression(function, expression)
+                expression
             )
         }
         
