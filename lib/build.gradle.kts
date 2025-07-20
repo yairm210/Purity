@@ -8,7 +8,7 @@ plugins {
 
 configure<PurityConfiguration> {
     enabled = true
-    warnOnPossibleAnnotations = true
+    warnOnPossibleAnnotations = false
     wellKnownPureClasses = setOf("kotlin.ranges.IntRange")
     wellKnownPureFunctions = setOf("hi","bob")
     wellKnownReadonlyFunctions = setOf("java.util.EnumMap.get")
