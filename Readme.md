@@ -108,25 +108,17 @@ Some functions are simple enough that they don't even need to be marked.
 
 Functions that override other functions, or implement interfaces, are automatically recognized as *at least as strict* as the overridden function.
 
-For a stupid example:
-
 ```kotlin
-
 interface AreaCalculator {
   @Pure
   fun area(): Int
 }
 
 class Square(val width: Int) : AreaCalculator {
-  // Should be defined as pure since it overrides a pure function
-  override fun area(): Int {
-    return width * width
-  }
+  override fun area(): Int = width * width  // Checked as if the function is marked with @Pure
 
   @Pure
-  fun otherFunction(): Int {
-    return area()
-  }
+  fun otherFunction(): Int = area() // Can call area() since it is considered @Pure
 }
 
 ```
