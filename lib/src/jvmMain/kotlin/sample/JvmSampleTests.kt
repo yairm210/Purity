@@ -190,7 +190,7 @@ fun testPassingReadonlyFunction(){
 
     // We sent a non-readonly function, so this should fail
     fun testFunctionNotReadonly() {
-        invoker { i:Int -> println("Hello, World!") }
+        invoker @TestExpectCompileError { i:Int -> println("Hello, World!") }
     }
 
     fun testFunctionReadonly(){
