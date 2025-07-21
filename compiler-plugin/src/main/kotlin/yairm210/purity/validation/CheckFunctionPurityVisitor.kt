@@ -108,9 +108,17 @@ class CheckFunctionPurityVisitor(
     }
     
     override fun visitCall(expression: IrCall, data: Unit) {
+
+        checkCalledFunctionPurity(expression)
+
+        super.visitCall(expression, data) 
+    }
+
+    
+    private fun checkCalledFunctionPurity(expression: IrCall) {
         // Only accept calls to functions marked as pure or readonly
         val calledFunction = expression.symbol.owner
-        
+
         /** Great in theory, thorny in practice...
          *  We currently don't have a good way to validate that the class's constructor was called from our function
          *  And this isn't just redeclaring a local val to an external one - see alterExternallyDeclaredInnerStateClass in SampleJvm
@@ -126,53 +134,38 @@ class CheckFunctionPurityVisitor(
                     expressionDispatchReceiver.symbol.owner.let { it is IrVariable && !it.isVar } &&
                     // Is declared in our function
                     expressionDispatchReceiver.symbol.owner.parent == function
-                    // Val is set to result of constructor - TODO
+            // Val is set to result of constructor - TODO
         }
-        
-        
-        // For now, we don't allow vars to be represented by @Immutable - we should warn against this...
-        fun representsAnnotationBearer(irExpression: IrExpression, annotation: String): Boolean {
-            if (irExpression is IrGetValue) { // local function variable
-                val irValueDeclaration = irExpression.symbol.owner
-                return irValueDeclaration is IrVariable
-                        && irValueDeclaration.hasAnnotation(FqName(annotation))
-            }
-            if (irExpression is IrCall) {
-                return irExpression.symbol.owner.let {
-                    it == it.correspondingPropertySymbol?.owner?.getter // A getter..
-                            // ... for a property that is immutable
-                            && it.correspondingPropertySymbol?.owner?.hasAnnotation(FqName(annotation)) == true
-                }  
-            }
-            return false
-        }
-        
-        val calledFunctionPurity =  when {
+
+        val calledFunctionPurity = when {
             // Pure function
-            ExpectedFunctionPurityChecker.isMarkedAsPure(calledFunction, purityConfig) 
-                    || (callerIsConstructedInOurFunction() && ExpectedFunctionPurityChecker.classMatches(calledFunction, wellKnownInternalStateClasses))
-                -> FunctionPurity.Pure
-            
+            ExpectedFunctionPurityChecker.isMarkedAsPure(calledFunction, purityConfig)
+                    || (callerIsConstructedInOurFunction() && ExpectedFunctionPurityChecker.classMatches(
+                calledFunction,
+                wellKnownInternalStateClasses
+            ))
+            -> FunctionPurity.Pure
+
             // Readonly functions on Immutable vals, are considered pure
             (expression.dispatchReceiver ?: expression.extensionReceiver)
                 ?.let { representsAnnotationBearer(it, "yairm210.purity.annotations.Immutable") } == true
                     && ExpectedFunctionPurityChecker.isReadonly(calledFunction, purityConfig)
-                -> FunctionPurity.Pure
-            
+            -> FunctionPurity.Pure
+
             // All functions on LocalState variables are considered pure
             (expression.dispatchReceiver ?: expression.extensionReceiver)
                 ?.let { representsAnnotationBearer(it, "yairm210.purity.annotations.LocalState") } == true
-                    -> FunctionPurity.Pure
-            
+            -> FunctionPurity.Pure
+
             ExpectedFunctionPurityChecker.isReadonly(calledFunction, purityConfig) -> FunctionPurity.Readonly
-            
+
             else -> FunctionPurity.None
         }
-        
-        
+
+
         if (calledFunctionPurity < FunctionPurity.Pure) isPure = false
         if (calledFunctionPurity < FunctionPurity.Readonly) isReadonly = false
-        
+
         if (declaredFunctionPurity > calledFunctionPurity) {
             report(
                 "Function \"${function.name}\" is marked as $declaredFunctionPurity " +
@@ -180,8 +173,22 @@ class CheckFunctionPurityVisitor(
                 expression
             )
         }
-        
-        super.visitCall(expression, data) 
+    }
+
+    private fun representsAnnotationBearer(irExpression: IrExpression, annotation: String): Boolean {
+        if (irExpression is IrGetValue) { // local function variable
+            val irValueDeclaration = irExpression.symbol.owner
+            return irValueDeclaration is IrVariable
+                    && irValueDeclaration.hasAnnotation(FqName(annotation))
+        }
+        if (irExpression is IrCall) {
+            return irExpression.symbol.owner.let {
+                it == it.correspondingPropertySymbol?.owner?.getter // A getter..
+                        // ... for a property that is immutable
+                        && it.correspondingPropertySymbol?.owner?.hasAnnotation(FqName(annotation)) == true
+            }
+        }
+        return false
     }
 
     override fun visitElement(element: IrElement, data: Unit) {
