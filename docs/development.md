@@ -8,7 +8,7 @@ To test the plugin on /lib, run `./gradlew :lib:clean :lib:build` - the plugin i
 JvmSampleTests.kt is not a standard test suite - it succeeds if it compiles.
 However, it is still divided into the various test cases, which are all standalone.
 
-To debug, you can run gradle lib:build *via IntelliJ* to debug the actual compiler plugin.
+To debug, you can run gradle lib:build *via IntelliJ* to debug the actual compiler plugin. (Need to click f9 4 times on gradle, not sure how to fix)
 
 To test on other projects, first increment the version (see below) - otherwise the plugin from the gradle plugin repository will be used.
 

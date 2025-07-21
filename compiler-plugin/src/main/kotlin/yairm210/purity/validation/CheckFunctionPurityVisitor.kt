@@ -6,10 +6,7 @@ import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.declarations.*
-import org.jetbrains.kotlin.ir.expressions.IrCall
-import org.jetbrains.kotlin.ir.expressions.IrExpression
-import org.jetbrains.kotlin.ir.expressions.IrGetValue
-import org.jetbrains.kotlin.ir.expressions.IrSetValue
+import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
@@ -40,12 +37,13 @@ class CheckFunctionPurityVisitor(
     private val messageCollector: MessageCollector,
     private val purityConfig: PurityConfig,
     ) : IrElementVisitor<Unit, Unit> { // Returns whether this is an acceptable X function
+        
     private var isReadonly = true
     private var isPure = true
     private var hasErrored = false
-    
+
     val hasExpectCompileErrorAnnotation = function.hasAnnotation(FqName("yairm210.purity.annotations.TestExpectCompileError"))
-    private val errorSeverity = if(hasExpectCompileErrorAnnotation) CompilerMessageSeverity.WARNING else CompilerMessageSeverity.ERROR
+    private val errorSeverity = if (hasExpectCompileErrorAnnotation) CompilerMessageSeverity.WARNING else CompilerMessageSeverity.ERROR
     
     fun actualFunctionPurity(): FunctionPurity {
         return when {
@@ -110,6 +108,7 @@ class CheckFunctionPurityVisitor(
     override fun visitCall(expression: IrCall, data: Unit) {
 
         checkCalledFunctionPurity(expression)
+        checkMarkedParameters(expression)
 
         super.visitCall(expression, data) 
     }
@@ -136,6 +135,11 @@ class CheckFunctionPurityVisitor(
                     expressionDispatchReceiver.symbol.owner.parent == function
             // Val is set to result of constructor - TODO
         }
+        
+        fun receiverHasAnnotation(annotation: String): Boolean {
+            return (expression.dispatchReceiver ?: expression.extensionReceiver)
+                ?.let { representsAnnotationBearer(it, annotation) } == true
+        }
 
         val calledFunctionPurity = when {
             // Pure function
@@ -144,18 +148,19 @@ class CheckFunctionPurityVisitor(
                 calledFunction,
                 wellKnownInternalStateClasses
             ))
-            -> FunctionPurity.Pure
+                -> FunctionPurity.Pure
 
             // Readonly functions on Immutable vals, are considered pure
-            (expression.dispatchReceiver ?: expression.extensionReceiver)
-                ?.let { representsAnnotationBearer(it, "yairm210.purity.annotations.Immutable") } == true
+            receiverHasAnnotation("yairm210.purity.annotations.Immutable")
                     && ExpectedFunctionPurityChecker.isReadonly(calledFunction, purityConfig)
-            -> FunctionPurity.Pure
+                -> FunctionPurity.Pure
 
             // All functions on LocalState variables are considered pure
-            (expression.dispatchReceiver ?: expression.extensionReceiver)
-                ?.let { representsAnnotationBearer(it, "yairm210.purity.annotations.LocalState") } == true
-            -> FunctionPurity.Pure
+            receiverHasAnnotation("yairm210.purity.annotations.LocalState") -> FunctionPurity.Pure
+
+            calledFunction.name.asString() == "invoke"
+                    && expression.dispatchReceiver?.type?.isFunction() == true
+                -> FunctionPurity.Pure
 
             ExpectedFunctionPurityChecker.isReadonly(calledFunction, purityConfig) -> FunctionPurity.Readonly
 
@@ -177,9 +182,7 @@ class CheckFunctionPurityVisitor(
 
     private fun representsAnnotationBearer(irExpression: IrExpression, annotation: String): Boolean {
         if (irExpression is IrGetValue) { // local function variable
-            val irValueDeclaration = irExpression.symbol.owner
-            return irValueDeclaration is IrVariable
-                    && irValueDeclaration.hasAnnotation(FqName(annotation))
+            return irExpression.symbol.owner.hasAnnotation(FqName(annotation))
         }
         if (irExpression is IrCall) {
             return irExpression.symbol.owner.let {
@@ -189,6 +192,52 @@ class CheckFunctionPurityVisitor(
             }
         }
         return false
+    }
+
+
+    private fun checkMarkedParameters(expression: IrCall) {
+        val calledFunction = expression.symbol.owner
+        
+        for ((parameter, parameterExpression) in expression.getAllArgumentsWithIr()) {
+            val parameterPurity = when {
+                parameter.hasAnnotation(FqName("yairm210.purity.annotations.Pure")) -> FunctionPurity.Pure
+                parameter.hasAnnotation(FqName("yairm210.purity.annotations.Readonly")) -> FunctionPurity.Readonly
+                else -> FunctionPurity.None
+            }
+
+            if (parameterPurity == FunctionPurity.None) continue
+
+            if (parameterExpression is IrFunctionExpression) { // lambda expression
+                // Must be readonly
+                // We instantiate a new checkFunctionPurityVisitor to check the lambda.
+                // We don't use the current visitor because the lambda may have a different purity than the entire function,
+                //  e.g  a readonly function that calls a pure function, sending a pure lambda.
+
+
+                // If this functions is already on the parameter purity level or higher, we're already checking!
+                // There is still a case where we will check things doubly:
+                // If the parent function is readonly, and the parameter is pure, we'll create a Pure visitor
+                // That means that readonly violations in the lambda will be raised by both the parent and the child
+                if (declaredFunctionPurity < parameterPurity) {
+                    val visitor = CheckFunctionPurityVisitor(
+                        function = parameterExpression.function,
+                        declaredFunctionPurity = parameterPurity,
+                        messageCollector = messageCollector,
+                        purityConfig = purityConfig,
+                    )
+
+                    // If there are problems, this will raise them as-is
+                    parameterExpression.function.accept(visitor, Unit)
+                }
+
+            } else {
+                report(
+                    "Function \"${function.name}\" calls \"${calledFunction.fqNameForIrSerialization}\" " +
+                            "with parameter \"${parameter.name}\" that is marked as $parameterPurity, but the value sent is not a lambda function.",
+                    expression
+                )
+            }
+        }
     }
 
     override fun visitElement(element: IrElement, data: Unit) {

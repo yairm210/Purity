@@ -8,11 +8,11 @@ Install the plugin by adding the following to your `build.gradle.kts`:
 
 ```kotlin
 plugins {
-    id("io.github.yairm210.purity-plugin") version "0.0.27"
+    id("io.github.yairm210.purity-plugin") version "0.0.28"
 }
 
 dependencies {
-  compileOnly("io.github.yairm210:purity-annotations:0.0.27")
+  compileOnly("io.github.yairm210:purity-annotations:0.0.28")
 }
 ```
 
@@ -123,7 +123,29 @@ class Square(val width: Int) : AreaCalculator {
 
 ```
 
-### Optional configuration
+### Functions as parameters
+
+Trick question: What purity is .let{}? The answer is: It depends on the function passed to it. Since we wish to allow passing pure functions to it, we recognize it as Pure.
+
+The same is true for all other functions that take a function as a parameter - we allow invoking passed functions, without their purity affecting the purity of the function that takes them.
+
+The reasoning is thus: The function that *calls* this function, if marked as Pure, cannot contain non-Pure code; If readonly, cannot contain non-Readonly code. Thus the called function takes on - at the least - the purity of the caller.
+
+However, there are situations where you want to enforce the purity of a passed function. You can do so by marking the parameter as @Pure or @Readonly:
+
+```kotlin
+@Readonly
+fun invoker(@Readonly function: (String) -> Unit) {
+    function("world") 
+}
+
+// We sent a non-readonly function, so this should fail
+fun compilationErrorInvokeWithNonReadonly() {  
+    invoker { i:String -> println("Hello, $i!") } // will fail compliation - non-Readonly function passed to a Readonly function parameter
+}
+```
+
+## Configuration
 
 #### Handling external classes
 
