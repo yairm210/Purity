@@ -180,3 +180,20 @@ fun testMarkingInterfaceMarksImplementations() {
         fun otherFunction(): Int = area() // Can call area() since it is considered @Pure
     }
 }
+
+
+fun testPassingReadonlyFunction(){
+    @Readonly
+    fun invoker(@Readonly function: (Int) -> Unit) {
+        function(4) // Can invoke input params marked as @Readonly
+    }
+
+    // We sent a non-readonly function, so this should fail
+    fun testFunctionNotReadonly() {
+        invoker { i:Int -> println("Hello, World!") }
+    }
+
+    fun testFunctionReadonly(){
+        invoker { 1 + 1 }
+    }
+}
