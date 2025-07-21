@@ -47,7 +47,7 @@ class CheckFunctionPurityVisitor(
     val hasExpectCompileErrorAnnotation = function.hasAnnotation(FqName("yairm210.purity.annotations.TestExpectCompileError"))
     private val errorSeverity = if(hasExpectCompileErrorAnnotation) CompilerMessageSeverity.WARNING else CompilerMessageSeverity.ERROR
     
-    fun actualFunctionColoring(): FunctionPurity {
+    fun actualFunctionPurity(): FunctionPurity {
         return when {
             isPure -> FunctionPurity.Pure
             isReadonly -> FunctionPurity.Readonly

@@ -1,9 +1,18 @@
 
 ## Development
 
+### Testing
+
 To test the plugin on /lib, run `./gradlew :lib:clean :lib:build` - the plugin is only active when the build cache is changed
 
+JvmSampleTests.kt is not a standard test suite - it succeeds if it compiles.
+However, it is still divided into the various test cases, which are all standalone.
+
+To debug, you can run gradle lib:build *via IntelliJ* to debug the actual compiler plugin.
+
 To test on other projects, first increment the version (see below) - otherwise the plugin from the gradle plugin repository will be used.
+
+### Publishing locally for use in local projects
 
 To publish the *compiler plugin* locally:
 - Comment out the `signAllPublications()` line in `compiler-plugin/build.gradle.kts` if you don't have the signing keys set up
