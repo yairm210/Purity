@@ -109,7 +109,7 @@ fun testReadonlyFunctionsOnImmutableConsideredPure(){
 
     @Pure
     fun readImmutable(index: Int): Int {
-        immutableList.filter { it > 2 } // allowed as 'extensionReceiver is @Immutable'
+        immutableList.filter { it > 2 }.asSequence() // allowed as 'extensionReceiver is @Immutable'
         return immutableList[index] // allowed as 'dispatchReceiver is @Immutable'
     }
 
