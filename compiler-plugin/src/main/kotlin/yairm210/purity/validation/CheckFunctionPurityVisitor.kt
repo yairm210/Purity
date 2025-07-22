@@ -70,6 +70,11 @@ class CheckFunctionPurityVisitor(
 
     // Iterate over IR tree and warn on each var set where the var is not created within this function
     override fun visitSetValue(expression: IrSetValue, data: Unit) {
+        if (declaredFunctionPurity == FunctionPurity.None){
+            super.visitSetValue(expression, data)
+            return
+        }
+        
         // Not sure if we can assume owner is set at this point :think:
         val varValueDeclaration: IrValueDeclaration = expression.symbol.owner
         
