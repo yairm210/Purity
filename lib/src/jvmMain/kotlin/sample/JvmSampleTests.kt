@@ -12,6 +12,16 @@ actual object Platform {
     actual val name: String = "JVM"
 }
 
+fun testUnmarkedFunctionCanGetAndSetVariables() {
+    var x = 5
+
+    // Unmarked function can read and write to variables
+    fun unmarkedGetX() = x
+    fun unmarkedSetX(value: Int) {
+        x = value
+    }
+}
+
 enum class MyEnum {
     A, B
 }
