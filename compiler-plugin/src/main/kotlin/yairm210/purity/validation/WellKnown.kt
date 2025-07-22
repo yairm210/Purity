@@ -58,7 +58,7 @@ val wellKnownReadonlyFunctions = setOf(
     "kotlin.collections.getOrElse",
     "kotlin.collections.containsKey",
     "kotlin.collections.containsValue",
-)
+)  + getCommonSequenceCollectionFunctions()
 
 
 // MOST of these are readonly, but some are unfortunately not. :(
@@ -91,7 +91,7 @@ val wellKnownPureFunctions = setOf(
     "kotlin.sequences.SequenceScope.yield",
     "kotlin.sequences.SequenceScope.yieldAll",
     "kotlin.sequences.emptySequence",
-) + getCommonSequenceCollectionFunctions()
+)
 
 fun getCommonSequenceCollectionFunctions(): Set<String>{
     val iterableSequenceCommonFunctions = setOf(
