@@ -197,3 +197,10 @@ fun testPassingReadonlyFunction(){
         invoker { 1 + 1 }
     }
 }
+
+enum class Order{
+    First, Second, Third
+}
+fun testEnumComparisonIsPure() {
+    @Pure fun isHigherThan(orderA: Order, orderB: Order) = orderA > orderB
+}
