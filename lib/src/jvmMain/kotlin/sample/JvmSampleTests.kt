@@ -14,17 +14,11 @@ actual object Platform {
 
 fun testUnmarkedFunctionCanGetAndSetVariables() {
     var x = 5
-
-    // Unmarked function can read and write to variables
     fun unmarkedGetX() = x
-    fun unmarkedSetX(value: Int) {
-        x = value
-    }
+    fun unmarkedSetX(value: Int) { x = value }
 }
 
-enum class MyEnum {
-    A, B
-}
+enum class MyEnum { A, B }
 
 fun testWellKnownReadonlyFunctions(){
     val map = HashMap<String, String>()
@@ -68,27 +62,18 @@ fun testClassVariableRetrieval(){
 
 fun testFunctionVariableGetSet(){
     var functionVariable = 3
-
-    // RIGHT: readonly, because reading external variables is allowed
-    @Readonly
-    fun readonlyGetVariable(): Int {
-        return functionVariable
-    }
+    
+    @Readonly // RIGHT: readonly, because reading external variables is allowed
+    fun readonlyGetVariable(): Int { return functionVariable }
     
     @Pure @TestExpectCompileError
-    fun pureGetVariable(): Int {
-        return functionVariable
-    }
+    fun pureGetVariable(): Int { return functionVariable }
     
     @Readonly @TestExpectCompileError
-    fun readonlySetVariable() {
-        functionVariable = 4
-    }
+    fun readonlySetVariable() { functionVariable = 4 }
 
     @Pure @TestExpectCompileError
-    fun pureSetVariable() {
-        functionVariable = 4
-    }
+    fun pureSetVariable() { functionVariable = 4 }
 }
 
 fun testFunctionsCanOnlyCallTheirPurityAndHigher() {
