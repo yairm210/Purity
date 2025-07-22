@@ -51,15 +51,11 @@ val wellKnownReadonlyFunctions = setOf(
     "java.util.AbstractList.get",
 )
 
+
 // MOST of these are readonly, but some are unfortunately not. :(
 // This is easier than making one huge list of all the acceptable functions
-// TODO: Maybe run this statically and generate a compile-time list of all functions, so we don't need String comparisons
-fun isWellKnownIterableOrSequenceFunction(fqname: String): Boolean {
-    if (!fqname.startsWith("kotlin.collections.") && !fqname.startsWith("kotlin.sequences.")) return false
-    if (fqname.endsWith("to")) return false // These get a collection and add to it
-    if (fqname.endsWith("toCollection")) return false
-    return true
-}
+// TODO: this is not good - could break in future Kotlin versions.
+// All well known functions need to be specified explicitly.
 
 val wellKnownPureFunctions = setOf(
     "kotlin.internal.ir.CHECK_NOT_NULL", // AKA !!
@@ -82,7 +78,76 @@ val wellKnownPureFunctions = setOf(
     
     "kotlin.sequences.sequence",
     "kotlin.sequences.SequenceScope.yield",
-)
+    "kotlin.sequences.emptySequence",
+) + getCommonSequenceCollectionFunctions()
+
+fun getCommonSequenceCollectionFunctions(): Set<String>{
+    val iterableSequenceCommonFunctions = setOf(
+        "joinToString",
+        "filter",
+        "map",
+        "flatMap",
+        "take",
+        "takeWhile",
+        "count",
+        "find",
+        "first",
+        "firstOrNull",
+        "last",
+        "lastOrNull",
+        "any",
+        "all",
+        "none",
+        "reduce",
+        "fold",
+        "sum",
+        "sumBy",
+        "sumByDouble",
+        "sumByLong",
+        "max",
+        "maxBy",
+        "maxByOrNull",
+        "maxOrNull",
+        "min",
+        "minBy",
+        "minByOrNull",
+        "minOrNull",
+        "distinct",
+        "distinctBy",
+        "sorted",
+        "sortedBy",
+        "sortedByDescending",
+        "sortedDescending",
+        "sortedWith",
+        "sortedWithComparator",
+        "groupBy",
+        "groupingBy",
+        "partition",
+        "zip",
+        "zipWithNext",
+        "chunked",
+        "windowed",
+        "associate",
+        "associateBy",
+        "associateWith",
+        "toList",
+        "toSet",
+        "toMap",
+        "toMutableList",
+        "toMutableSet",
+        "toMutableMap",
+        "asSequence",
+        "asIterable",
+    )
+    
+    val fullyQualifiedFunctionNames = mutableSetOf<String>()
+    for (prefix in listOf("kotlin.sequences.", "kotlin.collections.")){
+        for (function in iterableSequenceCommonFunctions) {
+            fullyQualifiedFunctionNames += prefix + function
+        }
+    }
+    return fullyQualifiedFunctionNames
+}
 
 val wellKnownPureFunctionsPrefixes = listOf(
     "kotlin.text.",

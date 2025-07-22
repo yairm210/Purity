@@ -74,8 +74,6 @@ object ExpectedFunctionPurityChecker {
         val fullyQualifiedFunctionName = function.fqNameForIrSerialization.asString()
         if (fullyQualifiedFunctionName in wellKnownReadonlyFunctions) return true
         if (fullyQualifiedFunctionName in purityConfig.wellKnownReadonlyFunctionsFromUser) return true
-        
-        if (isWellKnownIterableOrSequenceFunction(fullyQualifiedFunctionName)) return true
 
         // What is a NON-simple function, you ask? So do I! Lazy functions perhaps?
         if (function is IrSimpleFunction) {
