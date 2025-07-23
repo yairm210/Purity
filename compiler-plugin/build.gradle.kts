@@ -20,7 +20,7 @@ allprojects {
 }
 
 group = "io.github.yairm210"
-version = "0.0.34"
+version = "0.0.35"
 
 mavenPublishing {
     coordinates(group.toString(), "purity-compiler-plugin", version.toString())

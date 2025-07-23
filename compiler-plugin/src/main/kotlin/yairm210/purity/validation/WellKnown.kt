@@ -34,6 +34,7 @@ val wellKnownPureClasses = setOf(
     "kotlin.ranges.DoubleRange",
     
     "kotlin.enums.EnumEntries",
+    "java.text.NumberFormat",
 )
 
 // Where possible, use interfaces that cover a lot of classes
@@ -68,6 +69,8 @@ val wellKnownReadonlyFunctions = setOf(
 
 val wellKnownPureFunctions = setOf(
     "kotlin.internal.ir.CHECK_NOT_NULL", // AKA !!
+    "kotlin.internal.ir.noWhenBranchMatchedException",
+    "kotlin.to",
 
     "kotlin.let",
     "kotlin.run",
@@ -86,6 +89,7 @@ val wellKnownPureFunctions = setOf(
     "kotlin.collections.emptyList",
     "kotlin.collections.emptySet",
     "kotlin.collections.emptyMap",
+    "kotlin.collections.Collection.contains",
     
     "kotlin.sequences.sequence",
     "kotlin.sequences.SequenceScope.yield",

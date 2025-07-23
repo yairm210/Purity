@@ -199,3 +199,25 @@ enum class Order{
 fun testEnumComparisonIsPure() {
     @Pure fun isHigherThan(orderA: Order, orderB: Order) = orderA > orderB
 }
+
+fun testDataClassDestructuringConsideredPureOrReadonly() {
+    @Pure
+    fun splitDataClass() {
+        val pair = "example" to 42
+        // destructuring declarations of immmutable data classes are considered pure
+        val (str, num) = pair 
+    }
+    
+    data class MutablePair(var first: String, var second: Int)
+    @Readonly
+    fun splitMutableDataClassReadonly() {
+        val pair = MutablePair("example", 42)
+        val (str, num) = pair
+    }
+    
+    @Pure @TestExpectCompileError
+    fun splitMutableDataClassPure() {
+        val pair = MutablePair("example", 42)
+        val (str, num) = pair // destructuring declarations are considered pure
+    }
+}
