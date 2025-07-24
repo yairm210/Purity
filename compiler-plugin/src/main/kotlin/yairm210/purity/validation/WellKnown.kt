@@ -59,6 +59,7 @@ val wellKnownReadonlyFunctions = setOf(
     "kotlin.collections.getOrElse",
     "kotlin.collections.containsKey",
     "kotlin.collections.containsValue",
+    "kotlin.collections.Collection.contains",
 )  + getCommonSequenceCollectionFunctions()
 
 
@@ -89,7 +90,9 @@ val wellKnownPureFunctions = setOf(
     "kotlin.collections.emptyList",
     "kotlin.collections.emptySet",
     "kotlin.collections.emptyMap",
-    "kotlin.collections.Collection.contains",
+    
+    "kotlin.collections.component1", // required for destructuring declarations
+    "kotlin.collections.component2",
     
     "kotlin.sequences.sequence",
     "kotlin.sequences.SequenceScope.yield",

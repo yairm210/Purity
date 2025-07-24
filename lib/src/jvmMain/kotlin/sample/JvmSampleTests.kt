@@ -221,3 +221,13 @@ fun testDataClassDestructuringConsideredPureOrReadonly() {
         val (str, num) = pair // destructuring declarations are considered pure
     }
 }
+
+fun testDestructureHashmapEntries(){
+    @Readonly
+    fun splitHashmapEntries() {
+        val hashmap = hashMapOf("key1" to "value1", "key2" to "value2")
+        for ((key, value) in hashmap) {
+            var result = "$key: $value"
+        }
+    }
+}
