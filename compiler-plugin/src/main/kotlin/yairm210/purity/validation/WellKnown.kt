@@ -53,14 +53,16 @@ val wellKnownReadonlyFunctions = setOf(
     "java.util.AbstractList.get",
     "kotlin.collections.Iterator.hasNext",
     "kotlin.collections.Iterator.next",
-    "kotlin.collections.MutableSet.iterator",
+    "kotlin.collections.MutableCollection.iterator",
     "kotlin.collections.get",
     "kotlin.collections.getOrNull",
     "kotlin.collections.getOrElse",
     "kotlin.collections.containsKey",
     "kotlin.collections.containsValue",
     "kotlin.collections.Collection.contains",
-)  + getCommonSequenceCollectionFunctions()
+    "kotlin.collections.dropLastWhile",
+    "kotlin.collections.isNullOrEmpty",
+)  + getCommonSequenceCollectionFunctions() + mutableSetOf()
 
 
 // MOST of these are readonly, but some are unfortunately not. :(
