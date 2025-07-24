@@ -231,3 +231,18 @@ fun testDestructureHashmapEntries(){
         }
     }
 }
+
+fun testCache(){
+    class withCache {
+        @Cache private val cacheMap: MutableMap<Int, Int> = mutableMapOf()
+        fun cachedMutatingFunction(input: Int): Int {
+            return cacheMap.getOrPut(input){input * 2}
+        }
+        
+        @Cache private var value = 0
+        fun cachedSettingFunction(input: Int): Int {
+            if (value == 0) value = 42 // "heavy processing function"
+            return value
+        }
+    }
+}

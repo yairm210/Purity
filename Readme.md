@@ -64,7 +64,7 @@ fun pureFunction(int: Int): Int {
 }
 ```
 
-### Marking variables as LocalState
+### Local State variables
 
 Function purity is determined by its outer boundary - given the same call, return the same result. How we generate that result is up to us
 
@@ -94,6 +94,29 @@ fun alterExternallyDeclaredInnerStateClass() {
   @LocalState // False, and leads to broken contract!
   val localArrayList = existingArrayList // val access is allowed
   localArrayList.add("string") // Anything is allowed on a LocalState variable
+}
+```
+
+### Caching
+
+Often, you want to cache the result of a function in a class property - this is technically a state-altering operation, but the function as called could still be pure.
+
+You can mark these with @Cache to indicate that mutating functions, and setting, can be used on them.
+
+These properties *must* be private to ensure they cannot be mutated by external code.
+
+Note that for mutating caches (like maps), this does not guarantee thread safety, so use thread-safe data structures for multithreading.
+
+```kotlin
+@Cache private val cacheMap: MutableMap<Int, Int> = mutableMapOf()
+fun cachedMutatingFunction(input: Int): Int {
+    return cacheMap.getOrPut(input){ input * 2 }
+}
+
+@Cache private var value = 0
+fun cachedSettingFunction(input: Int): Int {
+    if (value == 0) value = 42 // "heavy processing function"
+    return value
 }
 ```
 
@@ -196,10 +219,3 @@ fun actsAsPure(): Int {
 
 Projects that helped me understand how to setup the project:
 * [Foso/KotlinCompilerPluginExample](https://github.com/Foso/KotlinCompilerPluginExample)
-
-## TODO
-
-- Handle function overrides - ensure that the overriding function is at least as strict as the overridden one 
-- Handle function calls in lambdas - ensure that the lambda is at least as strict as the function it is passed to
-- Allow mutating changes on function-local parameters (@Local annotation?)
-  - Ensure that the expression for the local is pure?

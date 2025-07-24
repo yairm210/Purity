@@ -3,15 +3,15 @@ package yairm210.purity.validation
 import org.jetbrains.kotlin.backend.common.IrElementTransformerVoidWithContext
 import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity
+import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
 import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.backend.js.utils.parentEnumClassOrNull
 import org.jetbrains.kotlin.ir.backend.js.utils.valueArguments
+import org.jetbrains.kotlin.ir.declarations.IrProperty
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
 import org.jetbrains.kotlin.ir.expressions.IrConst
 import org.jetbrains.kotlin.ir.expressions.impl.IrVarargImpl
-import org.jetbrains.kotlin.ir.util.findAnnotation
-import org.jetbrains.kotlin.ir.util.isInterface
-import org.jetbrains.kotlin.ir.util.parentClassOrNull
+import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.name.FqName
 import yairm210.purity.PurityConfig
 import yairm210.purity.boilerplate.DebugLogger
@@ -57,6 +57,18 @@ internal class PurityElementTransformer(
             .mapNotNull{it as? IrConst<String>}.map { it.value }
 
         return suppressParameters.contains("purity")
+    }
+
+    override fun visitPropertyNew(declaration: IrProperty): IrStatement {
+        if (declaration.visibility != DescriptorVisibilities.PRIVATE && declaration.hasAnnotation(FqName("yairm210.purity.annotations.Cache"))){
+            val message = "Variable \"${declaration.name}\" is marked as \"@Cache\", but is public - this annotation is reserved for private variables"
+            
+            debugLogger.messageCollector.report(
+                CompilerMessageSeverity.ERROR, message,
+                location = getLocationForExpression(declaration.fileEntry, declaration)
+            )
+        }
+        return super.visitPropertyNew(declaration)
     }
     
     override fun visitSimpleFunction(declaration: IrSimpleFunction): IrStatement {

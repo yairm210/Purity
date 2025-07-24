@@ -5,7 +5,10 @@ import org.jetbrains.kotlin.cli.common.messages.CompilerMessageLocation
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
 import org.jetbrains.kotlin.ir.IrElement
-import org.jetbrains.kotlin.ir.declarations.*
+import org.jetbrains.kotlin.ir.IrFileEntry
+import org.jetbrains.kotlin.ir.declarations.IrFunction
+import org.jetbrains.kotlin.ir.declarations.IrValueDeclaration
+import org.jetbrains.kotlin.ir.declarations.IrVariable
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
 import org.jetbrains.kotlin.ir.util.*
@@ -14,13 +17,16 @@ import org.jetbrains.kotlin.name.FqName
 import yairm210.purity.PurityConfig
 
 
+fun getLocationForExpression(function: IrFunction, expression: IrElement) = 
+    getLocationForExpression(function.fileEntry, expression)
+
 fun getLocationForExpression(
-    function: IrFunction,
+    fileEntry: IrFileEntry,
     expression: IrElement
 ): CompilerMessageLocation {
-    val lineAndColumn = function.fileEntry.getLineAndColumnNumbers(expression.startOffset)
+    val lineAndColumn = fileEntry.getLineAndColumnNumbers(expression.startOffset)
     return CompilerMessageLocation.create(
-        path = function.fileEntry.name,
+        path = fileEntry.name,
         line = lineAndColumn.line + 1, // Convert to 1-indexed
         column = lineAndColumn.column + 1, // Convert to 1-indexed
         lineContent = null
@@ -70,7 +76,8 @@ class CheckFunctionPurityVisitor(
 
     // Iterate over IR tree and warn on each var set where the var is not created within this function
     override fun visitSetValue(expression: IrSetValue, data: Unit) {
-        if (declaredFunctionPurity == FunctionPurity.None){
+        if (declaredFunctionPurity == FunctionPurity.None
+                || expression.symbol.owner.hasAnnotation(FqName("yairm210.purity.annotations.Cache"))){
             super.visitSetValue(expression, data)
             return
         }
@@ -161,7 +168,9 @@ class CheckFunctionPurityVisitor(
                 -> FunctionPurity.Pure
 
             // All functions on LocalState variables are considered pure
-            receiverHasAnnotation("yairm210.purity.annotations.LocalState") -> FunctionPurity.Pure
+            receiverHasAnnotation("yairm210.purity.annotations.LocalState")
+                    || receiverHasAnnotation("yairm210.purity.annotations.Cache")
+                -> FunctionPurity.Pure
 
             calledFunction.name.asString() == "invoke"
                     && expression.dispatchReceiver?.type?.isFunction() == true
