@@ -23,6 +23,7 @@ theme:
 
 repo_name: yairm210/purity
 repo_url: https://github.com/yairm210/purity
+site_url: https://yairm210.github.io/purity
 
 markdown_extensions:
   # For adminitions
