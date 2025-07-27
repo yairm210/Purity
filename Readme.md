@@ -1,6 +1,11 @@
 ## What is this?
 
-A Kotlin Compiler Plugin for determining and enforcing Pure and Readonly functions. Under construction!
+A Kotlin Compiler Plugin for determining and enforcing Pure and Readonly functions.
+
+### Why?
+
+- Communicating and enforcing function intent
+- Determining parallelizable calls (Pure functions are parallelizable with anything; Readonly are parallelizable with each other) 
 
 ## Usage
 
