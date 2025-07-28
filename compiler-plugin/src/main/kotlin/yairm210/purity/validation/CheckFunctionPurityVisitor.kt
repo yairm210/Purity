@@ -1,6 +1,7 @@
 @file:OptIn(UnsafeDuringIrConstructionAPI::class)
 package yairm210.purity.validation
 
+import org.jetbrains.kotlin.backend.common.checkDeclarationParents
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageLocation
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
@@ -210,6 +211,7 @@ class CheckFunctionPurityVisitor(
 
 
     private fun checkMarkedParameters(expression: IrCall) {
+            
         val calledFunction = expression.symbol.owner
         
         for ((parameter, parameterExpression) in expression.getAllArgumentsWithIr()) {
@@ -243,14 +245,36 @@ class CheckFunctionPurityVisitor(
                     // If there are problems, this will raise them as-is
                     parameterExpression.function.accept(visitor, Unit)
                 }
-
-            } else {
-                report(
-                    "Function \"${function.name}\" calls \"${calledFunction.fqNameForIrSerialization}\" " +
-                            "with parameter \"${parameter.name}\" that is marked as $parameterPurity, but the value sent is not a lambda function.",
-                    expression
-                )
+                continue
             }
+            
+            if (parameterExpression is IrGetValue){
+                val possibleAnnotations = when (parameterPurity) {
+                    FunctionPurity.Pure -> listOf("yairm210.purity.annotations.Pure")
+                    FunctionPurity.Readonly -> listOf("yairm210.purity.annotations.Readonly", "yairm210.purity.annotations.Pure")
+                    FunctionPurity.None -> listOf()
+                }
+                
+                // If we're passing a @Readonly to @Readonly or a @Pure to @Pure, that's fine
+                val hasAcceptableAnnotation = possibleAnnotations.any { 
+                    parameterExpression.symbol.owner.hasAnnotation(FqName(it)) 
+                }
+                
+                if (!hasAcceptableAnnotation) {
+                    report(
+                        "Function \"${function.name}\" calls \"${calledFunction.fqNameForIrSerialization}\" " +
+                                "with parameter \"${parameter.name}\" that is marked as $parameterPurity, but the value sent is not marked as @$parameterPurity.",
+                        expression
+                    )
+                }
+                continue
+            }
+            
+            report(
+                "Function \"${function.name}\" calls \"${calledFunction.fqNameForIrSerialization}\" " +
+                        "with parameter \"${parameter.name}\" that is marked as $parameterPurity, but the value sent is not a lambda function.",
+                expression
+            )
         }
     }
 

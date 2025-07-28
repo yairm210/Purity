@@ -7,4 +7,4 @@ import kotlin.annotation.AnnotationTarget.FUNCTION
  * This means that it does not have any side effects and its output depends only on its input.
  * Functions which read from mutable state are not pure.
  */
-@Target(FUNCTION) public annotation class Pure
+@Target(FUNCTION, AnnotationTarget.VALUE_PARAMETER) public annotation class Pure

@@ -191,6 +191,22 @@ fun testPassingReadonlyFunction(){
     fun testFunctionReadonly(){
         invoker { 1 + 1 }
     }
+    
+    fun testPassThroughFunction() {
+        fun passThroughReadonly(@Readonly function: (Int) -> Unit) {
+            invoker(function) // allowed, since function is marked as @Readonly as well
+        }
+        
+        fun pureReceiver(@Pure function: (Int) -> Unit) { }
+        
+        fun passThroughPure(@Pure function: (Int) -> Unit) {
+            pureReceiver(function) // allowed, since function is marked as @Readonly as well
+        }
+        
+        fun passThroughPureToReadonly(@Pure function: (Int) -> Unit) {
+            invoker(function)
+        }
+    }
 }
 
 enum class Order{
