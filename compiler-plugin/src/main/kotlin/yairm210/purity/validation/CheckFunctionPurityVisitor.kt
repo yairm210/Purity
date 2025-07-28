@@ -1,7 +1,6 @@
 @file:OptIn(UnsafeDuringIrConstructionAPI::class)
 package yairm210.purity.validation
 
-import org.jetbrains.kotlin.backend.common.checkDeclarationParents
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageLocation
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
@@ -49,7 +48,7 @@ class CheckFunctionPurityVisitor(
     private var isPure = true
     private var hasErrored = false
 
-    val hasExpectCompileErrorAnnotation = function.hasAnnotation(FqName("yairm210.purity.annotations.TestExpectCompileError"))
+    val hasExpectCompileErrorAnnotation = function.hasAnnotation(Annotations.TestExpectCompileError)
     private val errorSeverity = if (hasExpectCompileErrorAnnotation) CompilerMessageSeverity.WARNING else CompilerMessageSeverity.ERROR
     
     fun actualFunctionPurity(): FunctionPurity {
@@ -78,7 +77,7 @@ class CheckFunctionPurityVisitor(
     // Iterate over IR tree and warn on each var set where the var is not created within this function
     override fun visitSetValue(expression: IrSetValue, data: Unit) {
         if (declaredFunctionPurity == FunctionPurity.None
-                || expression.symbol.owner.hasAnnotation(FqName("yairm210.purity.annotations.Cache"))){
+                || expression.symbol.owner.hasAnnotation(Annotations.Cache)){
             super.visitSetValue(expression, data)
             return
         }
@@ -149,7 +148,7 @@ class CheckFunctionPurityVisitor(
             // Val is set to result of constructor - TODO
         }
         
-        fun receiverHasAnnotation(annotation: String): Boolean {
+        fun receiverHasAnnotation(annotation: FqName): Boolean {
             return (expression.dispatchReceiver ?: expression.extensionReceiver)
                 ?.let { representsAnnotationBearer(it, annotation) } == true
         }
@@ -164,13 +163,13 @@ class CheckFunctionPurityVisitor(
                 -> FunctionPurity.Pure
 
             // Readonly functions on Immutable vals, are considered pure
-            receiverHasAnnotation("yairm210.purity.annotations.Immutable")
+            receiverHasAnnotation(Annotations.Immutable)
                     && ExpectedFunctionPurityChecker.isReadonly(calledFunction, purityConfig)
                 -> FunctionPurity.Pure
 
             // All functions on LocalState variables are considered pure
-            receiverHasAnnotation("yairm210.purity.annotations.LocalState")
-                    || receiverHasAnnotation("yairm210.purity.annotations.Cache")
+            receiverHasAnnotation(Annotations.LocalState)
+                    || receiverHasAnnotation(Annotations.Cache)
                 -> FunctionPurity.Pure
 
             calledFunction.name.asString() == "invoke"
@@ -195,15 +194,15 @@ class CheckFunctionPurityVisitor(
         }
     }
 
-    private fun representsAnnotationBearer(irExpression: IrExpression, annotation: String): Boolean {
+    private fun representsAnnotationBearer(irExpression: IrExpression, annotation: FqName): Boolean {
         if (irExpression is IrGetValue) { // local function variable
-            return irExpression.symbol.owner.hasAnnotation(FqName(annotation))
+            return irExpression.symbol.owner.hasAnnotation(annotation)
         }
         if (irExpression is IrCall) {
             return irExpression.symbol.owner.let {
                 it == it.correspondingPropertySymbol?.owner?.getter // A getter..
                         // ... for a property that is immutable
-                        && it.correspondingPropertySymbol?.owner?.hasAnnotation(FqName(annotation)) == true
+                        && it.correspondingPropertySymbol?.owner?.hasAnnotation(annotation) == true
             }
         }
         return false
@@ -216,8 +215,8 @@ class CheckFunctionPurityVisitor(
         
         for ((parameter, parameterExpression) in expression.getAllArgumentsWithIr()) {
             val parameterPurity = when {
-                parameter.hasAnnotation(FqName("yairm210.purity.annotations.Pure")) -> FunctionPurity.Pure
-                parameter.hasAnnotation(FqName("yairm210.purity.annotations.Readonly")) -> FunctionPurity.Readonly
+                parameter.hasAnnotation(Annotations.Pure) -> FunctionPurity.Pure
+                parameter.hasAnnotation(Annotations.Readonly) -> FunctionPurity.Readonly
                 else -> FunctionPurity.None
             }
 
@@ -250,14 +249,14 @@ class CheckFunctionPurityVisitor(
             
             if (parameterExpression is IrGetValue){
                 val possibleAnnotations = when (parameterPurity) {
-                    FunctionPurity.Pure -> listOf("yairm210.purity.annotations.Pure")
-                    FunctionPurity.Readonly -> listOf("yairm210.purity.annotations.Readonly", "yairm210.purity.annotations.Pure")
+                    FunctionPurity.Pure -> listOf(Annotations.Pure)
+                    FunctionPurity.Readonly -> listOf(Annotations.Readonly, Annotations.Pure)
                     FunctionPurity.None -> listOf()
                 }
                 
                 // If we're passing a @Readonly to @Readonly or a @Pure to @Pure, that's fine
                 val hasAcceptableAnnotation = possibleAnnotations.any { 
-                    parameterExpression.symbol.owner.hasAnnotation(FqName(it)) 
+                    parameterExpression.symbol.owner.hasAnnotation(it) 
                 }
                 
                 if (!hasAcceptableAnnotation) {

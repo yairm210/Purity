@@ -60,7 +60,7 @@ internal class PurityElementTransformer(
     }
 
     override fun visitPropertyNew(declaration: IrProperty): IrStatement {
-        if (declaration.visibility != DescriptorVisibilities.PRIVATE && declaration.hasAnnotation(FqName("yairm210.purity.annotations.Cache"))){
+        if (declaration.visibility != DescriptorVisibilities.PRIVATE && declaration.hasAnnotation(Annotations.Cache)){
             val message = "Variable \"${declaration.name}\" is marked as \"@Cache\", but is public - this annotation is reserved for private variables"
             
             debugLogger.messageCollector.report(
