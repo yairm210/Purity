@@ -15,11 +15,13 @@ To test on other projects, first increment the version (see below) - otherwise t
 ### Publishing locally for use in local projects
 
 To publish the *compiler plugin* locally:
+
 - Comment out the `signAllPublications()` line in `compiler-plugin/build.gradle.kts` if you don't have the signing keys set up
 - `./gradlew :compiler-plugin:publishToMavenLocal`
 - It should now be available in `~/.m2/repository/io/github/yairm210/compiler-compiler-plugin/<version>`
 
 To publish the gradle plugin locally:
+
 - `./gradlew :gradle-plugin:build`
 - It should now be available in `~/.m2/repository/io/github/yairm210/gradle-plugin/<version>`
 

@@ -27,35 +27,42 @@ Mark pure functions using `@Pure`, and readonly functions using `@Readonly`:
 ```kotlin
 import yairm210.purity.annotations.Pure
 import yairm210.purity.annotations.Readonly
-
 @Pure
 fun pureFunction(x: Int): Int {
     return x * 2
 }
-
 @Readonly
 fun readonlyFunction(list: List<String>): Int {
     return list.size
 }
 ```
 
-### Advanced usage
-
-Further details are available in the [documentation site](https://yairm210.github.io/Purity/)
-
 ### Rules
 
 - Pure functions may not:
-  - Get or set external vars (vars created outside the function)
-  - Call other non-pure functions
+    - Get or set external vars (vars created outside the function)
+    - Call other non-pure functions
 
 - Readonly functions may not:
-  - Set external vars
-  - Call other non-readonly functions (pure functions are considered readonly as well)
+    - Set external vars
+    - Call other non-readonly functions (pure functions are considered readonly as well)
 
 Any violation of these rules creates a compilation error.
 
-## Acknowledgments
 
-Projects that helped me understand how to setup the project:
-* [Foso/KotlinCompilerPluginExample](https://github.com/Foso/KotlinCompilerPluginExample)
+### Suppressing validity checks
+
+Every dependency tree has leaves at the bottom.
+
+In order to gradually build up the functions that are checked by the compiler, you may want to work top-down, marking functions as you go.
+
+You can stop the process from here on by marking a function with `@Suppress("purity")`, like so:
+
+```kotlin
+var external = 3
+// reads an external variable, but will not throw a compilation error
+@Pure @Suppress("purity")
+fun actsAsPure(): Int {
+    return external
+}
+```

@@ -1,6 +1,6 @@
 ## Kotlin IR Documentation
 
-Kotlin IR is virtually undocumented, so here are some pointers!
+Kotlin IR is virtually undocumented, so here are some notes
 
 ## IrFunction
 
@@ -22,7 +22,7 @@ This is 'anything that returns a value'. Some prime examples are:
 
 ## IrCall
 
-An IrExpression representing a function call - x() or a.x().
+An `IrExpression` representing a function call - x() or a.x().
 
 `irCall.symbol.owner` gets you to the IrFunction.
 
@@ -33,8 +33,18 @@ When it's an extension function, the same applies to `irCall.extensionReceiver`.
 
 ## IrGetValue
 
-An IrExpression that retrieves the value of a local variable, which can be val or var.
+An `IrExpression` that retrieves the value of a local variable, which can be val or var.
 
 To find out about the actual val/var being referenced, you need to check `irGetValue.symbol.owner` which is a `IrValueDeclaration`.
 
 For example, `irValueDeclaration.isVar` indicates mutability.
+
+## IrProperty
+
+Unlike local variables, all class properties are represented by `IrProperty`, which generates behind the scenes:
+
+- An `IrField` for the backing field
+- a getter `IrFunction`
+- a setter `IrFunction` (for `var` properties)
+
+This means all access to properties is through the getter/setter functions (`IrCall`) and not through `IrGetValue`
