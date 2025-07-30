@@ -271,3 +271,16 @@ fun testWellKnownPureClassesConsideredImmutable() {
         string.indices.forEach { sumOfChars += string[it].code }
     }
 }
+
+fun functionsCanSafelyCallSubfunctions(){
+    // Function purity checks include all subfunction code - so the only difference is if they write to function-local variables or not
+    @Pure 
+    fun functionTested(): Int {
+        var internal = 0
+        fun subFunction(){
+            internal += 1
+        }
+        subFunction()
+        return internal
+    }
+}

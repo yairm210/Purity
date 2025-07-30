@@ -122,3 +122,19 @@ fun compilationErrorInvokeWithNonReadonly() {
     invoker { i:String -> println("Hello, $i!") } // will fail compliation - non-Readonly function passed to a Readonly function parameter
 }
 ```
+
+### Calling subfunctions
+
+Subfunctions - functions created within the function scope - may be called even without being explicitly marked - since their contents are checked as part of the larger function.
+
+This allows us to use subfunctions that write to local variables, while retaining the purity of the overall function:
+
+```kotlin
+ @Pure 
+    fun functionTested(): Int {
+        var internal = 0
+        fun subFunction() { internal += 1 }
+        subFunction()
+        return internal
+    }
+```

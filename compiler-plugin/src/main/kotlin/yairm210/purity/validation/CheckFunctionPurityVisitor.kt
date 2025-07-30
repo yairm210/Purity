@@ -126,10 +126,13 @@ class CheckFunctionPurityVisitor(
         super.visitCall(expression, data) 
     }
 
-    
+    /** Only accept calls to functions marked as pure / readonly */
     private fun checkCalledFunctionPurity(expression: IrCall) {
-        // Only accept calls to functions marked as pure or readonly
+        
         val calledFunction = expression.symbol.owner
+        
+        // This is a subfunction of the current function, so it's already checked
+        if (calledFunction.parent == function) return
 
         val receiver = expression.dispatchReceiver ?: expression.extensionReceiver
         
