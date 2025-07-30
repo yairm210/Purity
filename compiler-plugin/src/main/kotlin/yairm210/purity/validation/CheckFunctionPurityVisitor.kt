@@ -11,6 +11,7 @@ import org.jetbrains.kotlin.ir.declarations.IrValueDeclaration
 import org.jetbrains.kotlin.ir.declarations.IrVariable
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
+import org.jetbrains.kotlin.ir.types.classFqName
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 import org.jetbrains.kotlin.name.FqName
@@ -130,42 +131,26 @@ class CheckFunctionPurityVisitor(
         // Only accept calls to functions marked as pure or readonly
         val calledFunction = expression.symbol.owner
 
-        /** Great in theory, thorny in practice...
-         *  We currently don't have a good way to validate that the class's constructor was called from our function
-         *  And this isn't just redeclaring a local val to an external one - see alterExternallyDeclaredInnerStateClass in SampleJvm
-         *  Keeping this in case anyone else has a good idea of how to implement it because the theory is sound
-         *  When this works, uncomment correctLocalStateNonChainingPure
-         *  */
-        fun callerIsConstructedInOurFunction(): Boolean {
-            return false
-            //  
-            val expressionDispatchReceiver = expression.dispatchReceiver
-            return expressionDispatchReceiver is IrGetValue &&
-                    // is val
-                    expressionDispatchReceiver.symbol.owner.let { it is IrVariable && !it.isVar } &&
-                    // Is declared in our function
-                    expressionDispatchReceiver.symbol.owner.parent == function
-            // Val is set to result of constructor - TODO
-        }
+        val receiver = expression.dispatchReceiver ?: expression.extensionReceiver
         
-        fun receiverHasAnnotation(annotation: FqName): Boolean {
-            return (expression.dispatchReceiver ?: expression.extensionReceiver)
-                ?.let { representsAnnotationBearer(it, annotation) } == true
+        fun receiverHasAnnotation(annotation: FqName): Boolean =
+            receiver?.let { representsAnnotationBearer(it, annotation) } == true
+        
+        fun isWellKnownPureClass(fqName: FqName?): Boolean {
+            if (fqName == null) return false
+            val fqString = fqName.asString()
+            return fqString in wellKnownPureClasses || fqString in purityConfig.wellKnownPureClassesFromUser
         }
 
         val calledFunctionPurity = when {
             // Pure function
             ExpectedFunctionPurityChecker.isMarkedAsPure(calledFunction, purityConfig)
-                    || (callerIsConstructedInOurFunction() && ExpectedFunctionPurityChecker.classMatches(
-                calledFunction,
-                wellKnownInternalStateClasses
-            ))
                 -> FunctionPurity.Pure
 
             // Readonly functions on Immutable vals, are considered pure
-            receiverHasAnnotation(Annotations.Immutable)
+            (receiverHasAnnotation(Annotations.Immutable) || isWellKnownPureClass(receiver?.type?.classFqName))
                     && ExpectedFunctionPurityChecker.isReadonly(calledFunction, purityConfig)
-                -> FunctionPurity.Pure
+            -> FunctionPurity.Pure
 
             // All functions on LocalState variables are considered pure
             receiverHasAnnotation(Annotations.LocalState)

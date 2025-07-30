@@ -262,3 +262,12 @@ fun testCache(){
         }
     }
 }
+
+fun testWellKnownPureClassesConsideredImmutable() {
+    @Pure
+    fun useWellKnownPureClasses() {
+        val string = "Hello, World!"
+        var sumOfChars = 0
+        string.indices.forEach { sumOfChars += string[it].code }
+    }
+}
