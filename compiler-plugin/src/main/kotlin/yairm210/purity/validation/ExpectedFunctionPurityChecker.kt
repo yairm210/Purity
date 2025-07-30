@@ -123,15 +123,6 @@ object ExpectedFunctionPurityChecker {
         return false
     }
 
-    // overriddenSymbols only gives you the *direct* overrides, not the transitive ones.
-    private fun getAllOverriddenFunctions(function: IrSimpleFunction): Sequence<IrSimpleFunction> {
-        return function.overriddenSymbols.asSequence()
-            .flatMap {
-                val owner = it.owner
-                sequenceOf(owner) + getAllOverriddenFunctions(owner)
-            }
-    }
-
     /** For convenience - single-declaration functions like "fun getX() = x" are readonly */
     private fun isSingleStatementReturnReadonly(function: IrFunction): Boolean {
         val body = function.body ?: return false
@@ -169,4 +160,13 @@ object ExpectedFunctionPurityChecker {
 
         return false
     }
+}
+
+// overriddenSymbols only gives you the *direct* overrides, not the transitive ones.
+internal fun getAllOverriddenFunctions(function: IrSimpleFunction): Sequence<IrSimpleFunction> {
+    return function.overriddenSymbols.asSequence()
+        .flatMap {
+            val owner = it.owner
+            sequenceOf(owner) + getAllOverriddenFunctions(owner)
+        }
 }

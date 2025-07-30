@@ -77,8 +77,7 @@ class CheckFunctionPurityVisitor(
 
     // Iterate over IR tree and warn on each var set where the var is not created within this function
     override fun visitSetValue(expression: IrSetValue, data: Unit) {
-        if (declaredFunctionPurity == FunctionPurity.None
-                || expression.symbol.owner.hasAnnotation(Annotations.Cache)){
+        if (declaredFunctionPurity == FunctionPurity.None){
             super.visitSetValue(expression, data)
             return
         }
@@ -158,6 +157,8 @@ class CheckFunctionPurityVisitor(
             // All functions on LocalState variables are considered pure
             receiverHasAnnotation(Annotations.LocalState)
                     || receiverHasAnnotation(Annotations.Cache)
+                    // Allow setting @Cache properties
+                    || calledFunction.isSetter && calledFunction.correspondingPropertySymbol?.owner?.hasAnnotation(Annotations.Cache) == true
                 -> FunctionPurity.Pure
 
             calledFunction.name.asString() == "invoke"
