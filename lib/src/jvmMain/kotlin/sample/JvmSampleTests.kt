@@ -286,3 +286,10 @@ fun functionsCanSafelyCallSubfunctions(){
         return internal
     }
 }
+
+fun varargsConsideredImmutable(){
+    @Pure
+    fun varargsFunction(vararg numbers: Int): Int {
+        return numbers.sum() // varargs are considered immutable, so this is pure
+    }
+}

@@ -8,6 +8,7 @@ import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.IrFileEntry
 import org.jetbrains.kotlin.ir.declarations.IrFunction
 import org.jetbrains.kotlin.ir.declarations.IrValueDeclaration
+import org.jetbrains.kotlin.ir.declarations.IrValueParameter
 import org.jetbrains.kotlin.ir.declarations.IrVariable
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
@@ -143,6 +144,19 @@ class CheckFunctionPurityVisitor(
             val fqString = fqName.asString()
             return fqString in wellKnownPureClasses || fqString in purityConfig.wellKnownPureClassesFromUser
         }
+        
+        fun isImmutableReceiver(): Boolean {
+            if (receiver == null) return false
+            if (isWellKnownPureClass(receiver.type.classFqName)) return true
+            if (receiverHasAnnotation(Annotations.Immutable)) return true
+
+            // Vararg arrays are created by the function, so they can't be modified from outside
+            if (receiver is IrGetValue){
+                val symbolOwner = receiver.symbol.owner
+                if (symbolOwner is IrValueParameter && symbolOwner.isVararg) return true 
+            }
+            return false
+        }
 
         val calledFunctionPurity = when {
             // Pure function
@@ -150,9 +164,8 @@ class CheckFunctionPurityVisitor(
                 -> FunctionPurity.Pure
 
             // Readonly functions on Immutable vals, are considered pure
-            (receiverHasAnnotation(Annotations.Immutable) || isWellKnownPureClass(receiver?.type?.classFqName))
-                    && ExpectedFunctionPurityChecker.isReadonly(calledFunction, purityConfig)
-            -> FunctionPurity.Pure
+            isImmutableReceiver() && ExpectedFunctionPurityChecker.isReadonly(calledFunction, purityConfig)
+                -> FunctionPurity.Pure
 
             // All functions on LocalState variables are considered pure
             receiverHasAnnotation(Annotations.LocalState)

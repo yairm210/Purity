@@ -74,6 +74,11 @@ val wellKnownPureFunctions = setOf(
     "kotlin.internal.ir.CHECK_NOT_NULL", // AKA !!
     "kotlin.internal.ir.noWhenBranchMatchedException",
     "kotlin.to",
+    "kotlin.assert",
+    "kotlin.require",
+    "kotlin.requireNotNull",
+    "kotlin.check",
+    "kotlin.checkNotNull",
 
     "kotlin.let",
     "kotlin.run",
