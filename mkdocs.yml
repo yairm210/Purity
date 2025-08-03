@@ -1,8 +1,8 @@
 site_name: Purity
 theme:
   name: material
-  logo: assets/Purity.svg
-  favicon: assets/Purity.svg
+#  logo: assets/Purity.svg
+#  favicon: assets/Purity.svg
 
   palette:
     - scheme: default

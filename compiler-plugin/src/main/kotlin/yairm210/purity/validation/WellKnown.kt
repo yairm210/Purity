@@ -35,6 +35,8 @@ val wellKnownPureClasses = setOf(
     
     "kotlin.enums.EnumEntries",
     "java.text.NumberFormat",
+    "java.util.Locale",
+    "java.util.UUID",
 )
 
 // Where possible, use interfaces that cover a lot of classes
@@ -51,18 +53,25 @@ val wellKnownReadonlyFunctions = setOf(
     "java.util.AbstractCollection.size",
     "java.util.AbstractCollection.iterator",
     "java.util.AbstractList.get",
+    
+    // kotlin collections
     "kotlin.collections.Iterator.hasNext",
     "kotlin.collections.Iterator.next",
-    "kotlin.collections.MutableCollection.iterator",
+    "kotlin.collections.Iterable.iterator",
     "kotlin.collections.get",
     "kotlin.collections.getOrNull",
     "kotlin.collections.getOrElse",
     "kotlin.collections.containsKey",
     "kotlin.collections.containsValue",
     "kotlin.collections.Collection.contains",
+    "kotlin.collections.Collection.containsAll",
     "kotlin.collections.dropLastWhile",
     "kotlin.collections.isNullOrEmpty",
-)  + getCommonSequenceCollectionFunctions() + mutableSetOf()
+    "kotlin.collections.filterKeys",
+    "kotlin.collections.minus",
+    "kotlin.collections.plus",
+    "kotlin.collections.reversed",
+)  + getCommonSequenceCollectionFunctions()
 
 
 // MOST of these are readonly, but some are unfortunately not. :(
