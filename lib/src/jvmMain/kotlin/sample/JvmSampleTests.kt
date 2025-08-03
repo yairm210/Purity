@@ -274,7 +274,7 @@ fun testWellKnownPureClassesConsideredImmutable() {
     }
 }
 
-fun functionsCanSafelyCallSubfunctions(){
+fun testFunctionsCanSafelyCallSubfunctions(){
     // Function purity checks include all subfunction code - so the only difference is if they write to function-local variables or not
     @Pure 
     fun functionTested(): Int {
@@ -287,9 +287,21 @@ fun functionsCanSafelyCallSubfunctions(){
     }
 }
 
-fun varargsConsideredImmutable(){
+fun testVarargsConsideredImmutable(){
     @Pure
     fun varargsFunction(vararg numbers: Int): Int {
         return numbers.sum() // varargs are considered immutable, so this is pure
+    }
+}
+
+fun testNestedFunctionsCanBeCalled(){
+    @Readonly
+    fun readonlySequence() = sequence { 
+        var i = 0
+        fun changeLocalVariable(){
+            i = 1
+        }
+        changeLocalVariable()
+        yield(1)
     }
 }

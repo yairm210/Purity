@@ -132,7 +132,7 @@ class CheckFunctionPurityVisitor(
         val calledFunction = expression.symbol.owner
         
         // This is a subfunction of the current function, so it's already checked
-        if (calledFunction.parent == function) return
+        if (function in calledFunction.parents) return
 
         val receiver = expression.dispatchReceiver ?: expression.extensionReceiver
         
