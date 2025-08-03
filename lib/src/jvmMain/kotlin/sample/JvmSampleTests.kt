@@ -305,3 +305,11 @@ fun testNestedFunctionsCanBeCalled(){
         yield(1)
     }
 }
+
+fun testLocalStateRecognizedAutomaticallyForKnownClasses(){
+    @Pure
+    fun alterInnerStateClass() {
+        val existingArrayList = ArrayList<String>()
+        existingArrayList.add("string") // Anything is allowed on a LocalState variable
+    }
+}

@@ -25,13 +25,15 @@ Function purity is determined by its outer boundary - given the same call, retur
 
 One way many functions work is by building up a *mutable* object - a list, a map, etc - and returning it.
 
-Since these are by definition *mutating* functions, we need to mark the function variable as local:
+Common classes we can recognize as "holding internal state", and thus new instances can be recognized as "only available within the function".
+
+Unknown classes need to be marked manually, since the state changes are by definition *mutating* functions:
 
 ```kotlin
 @Pure
 fun alterExternallyDeclaredInnerStateClass() {
   @LocalState
-  val newArrayList = ArrayList<String>()
+  val newArrayList = ArrayList<String>() // technically, bad example, since this is recognized automatically
   newArrayList.add("string") // Anything is allowed on a LocalState variable
 }
 ```

@@ -6,10 +6,7 @@ import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.IrFileEntry
-import org.jetbrains.kotlin.ir.declarations.IrFunction
-import org.jetbrains.kotlin.ir.declarations.IrValueDeclaration
-import org.jetbrains.kotlin.ir.declarations.IrValueParameter
-import org.jetbrains.kotlin.ir.declarations.IrVariable
+import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
 import org.jetbrains.kotlin.ir.types.classFqName
@@ -79,8 +76,7 @@ class CheckFunctionPurityVisitor(
     // Iterate over IR tree and warn on each var set where the var is not created within this function
     override fun visitSetValue(expression: IrSetValue, data: Unit) {
         if (declaredFunctionPurity == FunctionPurity.None){
-            super.visitSetValue(expression, data)
-            return
+            return super.visitSetValue(expression, data)
         }
         
         // Not sure if we can assume owner is set at this point :think:
@@ -98,6 +94,17 @@ class CheckFunctionPurityVisitor(
             )
         }
         super.visitSetValue(expression, data)
+    }
+    
+    private val localStateVariables = HashSet<IrVariable>()
+    override fun visitVariable(declaration: IrVariable, data: Unit) {
+        val initializer = declaration.initializer
+        // If we're initializing a val with a constructor call to a well-known internal state class, it's the same as manually adding @LocalState
+        if (!declaration.isVar && initializer is IrConstructorCall && initializer.type.classFqName?.asString() in wellKnownInternalStateClasses) {
+            localStateVariables.add(declaration)
+        }
+    
+        return super.visitVariable(declaration, data)
     }
 
     override fun visitGetValue(expression: IrGetValue, data: Unit) {
@@ -169,6 +176,7 @@ class CheckFunctionPurityVisitor(
 
             // All functions on LocalState variables are considered pure
             receiverHasAnnotation(Annotations.LocalState)
+                    || receiver is IrGetValue && receiver.symbol.owner in localStateVariables
                     || receiverHasAnnotation(Annotations.Cache)
                     // Allow setting @Cache properties
                     || calledFunction.isSetter && calledFunction.correspondingPropertySymbol?.owner?.hasAnnotation(Annotations.Cache) == true
