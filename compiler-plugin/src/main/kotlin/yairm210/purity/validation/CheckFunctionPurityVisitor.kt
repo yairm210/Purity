@@ -100,8 +100,11 @@ class CheckFunctionPurityVisitor(
     override fun visitVariable(declaration: IrVariable, data: Unit) {
         val initializer = declaration.initializer
         // If we're initializing a val with a constructor call to a well-known internal state class, it's the same as manually adding @LocalState
-        if (!declaration.isVar && initializer is IrConstructorCall && initializer.type.classFqName?.asString() in wellKnownInternalStateClasses) {
-            localStateVariables.add(declaration)
+        if (!declaration.isVar && initializer is IrConstructorCall) {
+            val fullyQualifiedClassName = initializer.type.classFqName?.asString() 
+            if (fullyQualifiedClassName in wellKnownInternalStateClasses
+                || fullyQualifiedClassName in purityConfig.wellKnownInternalStateClassesFromUser)
+                localStateVariables.add(declaration)
         }
     
         return super.visitVariable(declaration, data)

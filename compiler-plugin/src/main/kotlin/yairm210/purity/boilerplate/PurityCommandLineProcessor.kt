@@ -13,6 +13,7 @@ val warnOnPossibleAnnotations = "warnOnPossibleAnnotations"
 val wellKnownPureClasses = "wellKnownPureClasses"
 val wellKnownPureFunctions = "wellKnownPureFunctions"
 val wellKnownReadonlyFunctions = "wellKnownReadonlyFunctions"
+val wellKnownInternalStateClasses = "wellKnownInternalStateClasses"
 
 @AutoService(CommandLineProcessor::class) // don't forget!
 class PurityCommandLineProcessor : CommandLineProcessor {
@@ -43,6 +44,11 @@ class PurityCommandLineProcessor : CommandLineProcessor {
             description = "A list of fully qualified function names that are readonly functions",
             required = false
         ),
+        CliOption(
+            optionName = wellKnownInternalStateClasses, valueDescription = "<fully qualified class names delimited by underscores>",
+            description = "A list of fully qualified class names that alter only internal state",
+            required = false
+        ),
     )
     
     private fun stringToSet(string:String) = string.split("_").map { it.trim() }.toSet()
@@ -65,6 +71,7 @@ class PurityCommandLineProcessor : CommandLineProcessor {
         wellKnownPureClasses -> getConfig(configuration).wellKnownPureClassesFromUser = stringToSet(value)
         wellKnownPureFunctions -> getConfig(configuration).wellKnownPureFunctionsFromUser = stringToSet(value)
         wellKnownReadonlyFunctions -> getConfig(configuration).wellKnownReadonlyFunctionsFromUser = stringToSet(value)
+        wellKnownInternalStateClasses -> getConfig(configuration).wellKnownInternalStateClassesFromUser = stringToSet(value)
         else -> throw IllegalArgumentException("Unknown option: ${option.optionName}")
     }
 }

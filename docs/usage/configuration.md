@@ -28,6 +28,7 @@ configure<PurityConfiguration> { // All of these are examples that are already c
   wellKnownPureClasses = setOf("kotlin.ranges.IntRange")
   wellKnownPureFunctions = setOf("kotlin.collections.listOf")
   wellKnownReadonlyFunctions = setOf("java.util.EnumMap.get")
+  wellKnownInternalStateClasses = setOf("my.internal.list") // classes to be autorecognized as '@LocalState' when constructed
 }
 ```
 

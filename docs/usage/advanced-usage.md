@@ -26,22 +26,26 @@ Function purity is determined by its outer boundary - given the same call, retur
 One way many functions work is by building up a *mutable* object - a list, a map, etc - and returning it.
 
 Common classes we can recognize as "holding internal state", and thus new instances can be recognized as "only available within the function".
+New classes can be added via `wellKnownInternalStateClasses` in the config. 
 
-Unknown classes need to be marked manually, since the state changes are by definition *mutating* functions:
+For non-constructors, we need to add the `@LocalState` attribute manually:
 
 ```kotlin
+@Pure fun getArrayList(): ArrayList<String> = ArrayList<String>().apply {
+    add("string")
+}
+
 @Pure
 fun alterExternallyDeclaredInnerStateClass() {
-  @LocalState
-  val newArrayList = ArrayList<String>() // technically, bad example, since this is recognized automatically
-  newArrayList.add("string") // Anything is allowed on a LocalState variable
+  @LocalState val newArrayList = getArrayList()
+  newArrayList.add("another string") // Anything is allowed on a LocalState variable
 }
 ```
 
 Unfortunately, since it's only functions on the val itself that are allowed, we cannot chain calls.
 The best be can do is assign the value back to a variable and then use it.
 
-Note that this is a promise, and is abusable, for the same reason it's not automatically determinable. Consider the following abuse example:
+Note that adding `@LocalState` is a promise by the developer, and is abusable. Consider the following abuse example:
 
 ```kotlin
 val existingArrayList = ArrayList<String>()

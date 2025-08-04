@@ -17,6 +17,9 @@ open class PurityConfiguration {
     var wellKnownPureFunctions = setOf<String>()
     /** Fully-qualified names of readonly functions */
     var wellKnownReadonlyFunctions = setOf<String>()
+    /** Fully-qualified names of classes which alter state, but only internally (e.g. List, HashMap, Set).
+     * Newly constructed instances of this class are recognized automatically as @LocalState in functions */
+    var wellKnownInternalStateClasses = setOf<String>()
 }
 
 @Suppress("unused")
@@ -40,6 +43,7 @@ class PurityGradlePlugin : KotlinCompilerPluginSupportPlugin {
                 SubpluginOption("wellKnownPureClasses", gradleExtension.wellKnownPureClasses.joinToString("_")),
                 SubpluginOption("wellKnownPureFunctions", gradleExtension.wellKnownPureFunctions.joinToString("_")),
                 SubpluginOption("wellKnownReadonlyFunctions", gradleExtension.wellKnownReadonlyFunctions.joinToString("_")),
+                SubpluginOption("wellKnownInternalStateClasses", gradleExtension.wellKnownInternalStateClasses.joinToString("_")),
             )
             options
         }
