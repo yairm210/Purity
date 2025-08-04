@@ -4,16 +4,12 @@ package yairm210.purity.validation
 
 // All the functions of these are readonly
 val wellKnownReadonlyClasses = setOf(
-    "kotlin.String",
     "kotlin.collections.List",
     "kotlin.collections.Set",
     "kotlin.collections.Map",
     "kotlin.collections.Collection",
     "kotlin.collections.Iterator",
     "kotlin.collections.IntIterator",
-    "kotlin.sequences.Sequence",
-    "kotlin.text.Regex",
-    "kotlin.text.MatchResult",
     "kotlin.sequences.Sequence",
 )
 
@@ -26,6 +22,9 @@ val wellKnownPureClasses = setOf(
     "kotlin.Boolean",
     "kotlin.Char",
     "kotlin.String",
+    
+    "kotlin.text.Regex", // Even when reading, we read a string, which is immutable
+    "kotlin.text.MatchResult",
 
     "kotlin.ranges.IntRange",
     "kotlin.ranges.LongRange",

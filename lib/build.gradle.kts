@@ -11,6 +11,7 @@ configure<PurityConfiguration> {
     warnOnPossibleAnnotations = false
     wellKnownPureClasses = setOf("kotlin.ranges.IntRange")
     wellKnownPureFunctions = setOf("hi","bob")
+    wellKnownReadonlyClasses = setOf("kotlin.sequences.Sequence")
     wellKnownReadonlyFunctions = setOf("java.util.EnumMap.get")
     wellKnownInternalStateClasses = setOf("my.internal.list")
 }

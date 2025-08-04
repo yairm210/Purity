@@ -95,7 +95,7 @@ object ExpectedFunctionPurityChecker {
 
         val fullyQualifiedClassName = function.parent.fqNameForIrSerialization.asString()
         if (fullyQualifiedClassName in wellKnownReadonlyClasses) return true
-        // TODO: Do we need user-inputted readonly classes?
+        if (fullyQualifiedClassName in purityConfig.wellKnownReadonlyClassesFromUser) return true
 
         // Do NOT check for readonly parent classes - child classes can add non-readonly functionality!
         // E.g. List is readonly, but ArrayList is not.

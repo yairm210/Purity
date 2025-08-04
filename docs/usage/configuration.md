@@ -27,8 +27,9 @@ import yairm210.purity.PurityConfiguration // at the top of your build.gradle.kt
 configure<PurityConfiguration> { // All of these are examples that are already contained in the known functions/classes 
   wellKnownPureClasses = setOf("kotlin.ranges.IntRange")
   wellKnownPureFunctions = setOf("kotlin.collections.listOf")
+  wellKnownReadonlyClasses = setOf("kotlin.sequences.Sequence")
   wellKnownReadonlyFunctions = setOf("java.util.EnumMap.get")
-  wellKnownInternalStateClasses = setOf("my.internal.list") // classes to be autorecognized as '@LocalState' when constructed
+  wellKnownInternalStateClasses = setOf("java.util.LinkedHashSet") // classes to be autorecognized as '@LocalState' when constructed
 }
 ```
 
