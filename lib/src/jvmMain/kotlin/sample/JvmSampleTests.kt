@@ -313,3 +313,14 @@ fun testLocalStateRecognizedAutomaticallyForKnownClasses(){
         existingArrayList.add("string") // Anything is allowed on a LocalState variable
     }
 }
+
+fun testInheritingFunctionsInheritSuppression(){
+    var external = 0 
+    open class A{
+        @Pure @Suppress("purity") open fun suppressed() {}
+    }
+    
+    class B : A() {
+        override fun suppressed() { external += 1 }
+    }
+}

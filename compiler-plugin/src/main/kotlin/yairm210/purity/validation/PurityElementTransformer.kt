@@ -47,13 +47,16 @@ internal class PurityElementTransformer(
     }
     
     private fun isSuppressed(declaration: IrSimpleFunction): Boolean {
-        val suppressAnnotation = declaration.annotations.findAnnotation(FqName("kotlin.Suppress"))
-            ?: return false
+        val allInheritedAnnotations = declaration.annotations + getAllOverriddenFunctions(declaration).flatMap { it.annotations }
+        val suppressFqName = FqName("kotlin.Suppress")
+        val suppressAnnotations = allInheritedAnnotations.filter { it.isAnnotation(suppressFqName) }
+        if (suppressAnnotations.isEmpty()) return false
         
         // getAnnotationArgumentValue does not work for varargs, so we find the vararg
         //.flatmap{} instead of .valueArguments[0] because Suppress can be called with zero parameters also -_-
         @Suppress("UNCHECKED_CAST")
-        val suppressParameters: List<String> = suppressAnnotation.valueArguments.flatMap { (it as IrVarargImpl).elements }
+        val suppressParameters: List<String> = suppressAnnotations.flatMap { it.valueArguments } // arguments of function and all overridden functions
+            .flatMap { (it as IrVarargImpl).elements }
             .mapNotNull{it as? IrConst<String>}.map { it.value }
 
         return suppressParameters.contains("purity")
