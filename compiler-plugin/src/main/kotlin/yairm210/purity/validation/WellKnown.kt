@@ -46,6 +46,7 @@ val wellKnownReadonlyFunctions = setOf(
     "kotlin.collections.Map.containsKey",
     "kotlin.collections.Map.containsValue",
     "kotlin.collections.Map.get",
+    
     // Collection
     "java.util.AbstractCollection.contains",
     "java.util.AbstractCollection.isEmpty",
@@ -70,7 +71,70 @@ val wellKnownReadonlyFunctions = setOf(
     "kotlin.collections.minus",
     "kotlin.collections.plus",
     "kotlin.collections.reversed",
-)  + getCommonSequenceCollectionFunctions()
+    "kotlin.collections.intersect",
+    "kotlin.Array.get",
+    
+    
+    // Java Reflection
+    "java.lang.Class.getField",
+    "java.lang.Class.getFields",
+    "java.lang.Class.getMethod",
+    "java.lang.Class.getMethods",
+    "java.lang.Class.getDeclaredField",
+    "java.lang.Class.getDeclaredFields",
+    "java.lang.Class.getDeclaredMethod",
+    "java.lang.Class.getDeclaredMethods",
+    "java.lang.Class.getAnnotation",
+    "java.lang.Class.getAnnotations",
+    "java.lang.Class.getDeclaredAnnotation",
+    "java.lang.Class.getDeclaredAnnotations",
+    "java.lang.Class.getPackage",
+    "java.lang.Class.getSimpleName",
+    "java.lang.Class.getName",
+    "java.lang.Class.getCanonicalName",
+    "java.lang.Class.getTypeName",
+    "java.lang.Class.getInterfaces",
+    "java.lang.Class.getSuperclass",
+    "java.lang.Class.isArray",
+    "java.lang.Class.isEnum",
+    "java.lang.Class.isInstance",
+    "java.lang.Class.isAssignableFrom",
+    "java.lang.Class.isAnnotation",
+    "java.lang.Class.isInterface",
+    "java.lang.Class.isPrimitive",
+    "java.lang.Class.isSynthetic",
+    "java.lang.Class.isAnonymousClass",
+    "java.lang.Class.isLocalClass",
+    "java.lang.Class.isMemberClass",
+    "java.lang.Class.getEnumConstants",
+    "java.lang.reflect.Field.getAnnotation",
+    "java.lang.reflect.Field.getAnnotations",
+    "java.lang.reflect.Field.getDeclaredAnnotation",
+    "java.lang.reflect.Field.getDeclaredAnnotations",
+    "java.lang.reflect.Field.getType",
+    "java.lang.reflect.Field.getTypeName",
+    "java.lang.reflect.Field.getName",
+    "java.lang.reflect.Field.getModifiers",
+    "java.lang.reflect.Field.getDeclaringClass",
+    "java.lang.reflect.Field.get",
+    "java.lang.reflect.Field.getBoolean",
+    "java.lang.reflect.Field.getByte",
+    "java.lang.reflect.Field.getChar",
+    "java.lang.reflect.Field.getShort",
+    "java.lang.reflect.Field.getInt",
+    "java.lang.reflect.Field.getLong",
+    "java.lang.reflect.Field.getFloat",
+    "java.lang.reflect.Field.getDouble",
+    "java.lang.reflect.Field.getGenericType",
+    "java.lang.reflect.Field.getGenericTypeName",
+    "java.lang.reflect.Field.getGenericType",
+    
+    // Kotlin Reflection
+    "kotlin.reflect.KMutableProperty0.get",
+    "kotlin.reflect.KMutableProperty1.get",
+    "kotlin.reflect.KMutableProperty2.get",
+    
+)  + getCommonSequenceIterableFunctions()
 
 
 // MOST of these are readonly, but some are unfortunately not. :(
@@ -95,10 +159,12 @@ val wellKnownPureFunctions = setOf(
     "kotlin.takeIf",
     "kotlin.takeUnless",
     
-    // Alas, not all of kotlin.collections is pure...
     "kotlin.collections.mutableListOf",
+    "kotlin.collections.mutableSetOf",
     "kotlin.collections.listOf",
+    "kotlin.collections.arrayListOf",
     "kotlin.collections.setOf",
+    "kotlin.collections.hashSetOf",
     "kotlin.collections.mapOf",
     "kotlin.collections.hashMapOf",
     "kotlin.sequences.sequenceOf",
@@ -115,7 +181,7 @@ val wellKnownPureFunctions = setOf(
     "kotlin.sequences.emptySequence",
 )
 
-fun getCommonSequenceCollectionFunctions(): Set<String>{
+fun getCommonSequenceIterableFunctions(): Set<String>{
     val iterableSequenceCommonFunctions = setOf(
         "all",
         "any",
@@ -172,11 +238,13 @@ fun getCommonSequenceCollectionFunctions(): Set<String>{
         "maxBy",
         "maxByOrNull",
         "maxOf",
+        "maxOfOrNull",
         "maxOrNull",
         "min",
         "minBy",
         "minByOrNull",
         "minOf",
+        "minOfOrNull",
         "minOrNull",
         "none",
         "partition",
@@ -208,6 +276,7 @@ fun getCommonSequenceCollectionFunctions(): Set<String>{
         "toSet",
         "toSortedSet",
         "windowed",
+        "withIndex",
         "zip",
         "zipWithNext"
     )

@@ -312,6 +312,13 @@ fun testLocalStateRecognizedAutomaticallyForKnownClasses(){
         val existingArrayList = ArrayList<String>()
         existingArrayList.add("string") // Anything is allowed on a LocalState variable
     }
+
+
+    @Pure
+    fun alterInnerStateClassFromPureFunction() {
+        val existingArrayList = hashset("hi")
+        existingArrayList.add("string") // Anything is allowed on a LocalState variable
+    }
 }
 
 fun testInheritingFunctionsInheritSuppression(){

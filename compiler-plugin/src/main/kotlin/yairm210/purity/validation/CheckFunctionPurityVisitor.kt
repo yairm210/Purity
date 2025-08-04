@@ -106,6 +106,18 @@ class CheckFunctionPurityVisitor(
                 || fullyQualifiedClassName in purityConfig.wellKnownInternalStateClassesFromUser)
                 localStateVariables.add(declaration)
         }
+        
+        // If we're calling a pure function, the instance is guaranteed to not be mutable by anyone else (or the function would not be pure)
+        // If in addition to that, the type is a well-known internal state class, then it's state that we may modify only
+        // Thus, it is safe to consider this as a LocalState variable
+        if (!declaration.isVar && initializer is IrCall
+            && ExpectedFunctionPurityChecker.isMarkedAsPure(initializer.symbol.owner, purityConfig)) {
+            val typeName = initializer.type.classFqName?.asString()
+            if (typeName in wellKnownInternalStateClasses
+                || typeName in purityConfig.wellKnownInternalStateClassesFromUser) {
+                localStateVariables.add(declaration)
+            }
+        }
     
         return super.visitVariable(declaration, data)
     }
