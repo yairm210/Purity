@@ -179,6 +179,9 @@ val wellKnownPureFunctions = setOf(
     "kotlin.sequences.SequenceScope.yield",
     "kotlin.sequences.SequenceScope.yieldAll",
     "kotlin.sequences.emptySequence",
+    
+    "kotlin.io.println", // not TECHNICALLY pure, but PRACTICALLY pure - used for debug logs
+    "kotlin.io.print",
 )
 
 fun getCommonSequenceIterableFunctions(): Set<String>{

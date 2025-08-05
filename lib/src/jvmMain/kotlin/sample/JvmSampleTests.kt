@@ -331,3 +331,16 @@ fun testInheritingFunctionsInheritSuppression(){
         override fun suppressed() { external += 1 }
     }
 }
+
+fun testForLocalStateAnnotation() {
+    
+    @Readonly
+    fun localStateFunction() {
+        // This is recognized as local state
+        val localListOfLists = mutableListOf(mutableListOf<String>(), mutableListOf())
+        // This is not 
+        for (@LocalState item in localListOfLists) {
+            item.add("hi")
+        }
+    }
+}
