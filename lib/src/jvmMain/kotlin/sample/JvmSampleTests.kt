@@ -316,7 +316,7 @@ fun testLocalStateRecognizedAutomaticallyForKnownClasses(){
 
     @Pure
     fun alterInnerStateClassFromPureFunction() {
-        val existingArrayList = hashset("hi")
+        val existingArrayList = hashSetOf("hi")
         existingArrayList.add("string") // Anything is allowed on a LocalState variable
     }
 }
