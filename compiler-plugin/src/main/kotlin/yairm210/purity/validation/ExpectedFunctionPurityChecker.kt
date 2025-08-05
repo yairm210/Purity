@@ -7,6 +7,7 @@ import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.name.FqName
 import yairm210.purity.PurityConfig
+import yairm210.purity.validation.wellknown.*
 
 /** Checks the expected purity of a given IrFunction.
  * Unlike [CheckFunctionPurityVisitor] this is not a deep dive into the function.

@@ -14,6 +14,8 @@ import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 import org.jetbrains.kotlin.name.FqName
 import yairm210.purity.PurityConfig
+import yairm210.purity.validation.wellknown.wellKnownInternalStateClasses
+import yairm210.purity.validation.wellknown.wellKnownPureClasses
 
 
 fun getLocationForExpression(function: IrFunction, expression: IrElement) = 

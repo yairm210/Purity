@@ -1,42 +1,5 @@
-package yairm210.purity.validation
+package yairm210.purity.validation.wellknown
 
-
-
-// All the functions of these are readonly
-val wellKnownReadonlyClasses = setOf(
-    "kotlin.collections.List",
-    "kotlin.collections.Set",
-    "kotlin.collections.Map",
-    "kotlin.collections.Collection",
-    "kotlin.collections.Iterator",
-    "kotlin.collections.IntIterator",
-    "kotlin.sequences.Sequence",
-)
-
-val wellKnownPureClasses = setOf(
-    "kotlin.Int",
-    "kotlin.Long",
-    "kotlin.Float",
-    "kotlin.Double",
-    "kotlin.Number",
-    "kotlin.Boolean",
-    "kotlin.Char",
-    "kotlin.String",
-    
-    "kotlin.text.Regex", // Even when reading, we read a string, which is immutable
-    "kotlin.text.MatchResult",
-
-    "kotlin.ranges.IntRange",
-    "kotlin.ranges.LongRange",
-    "kotlin.ranges.CharRange",
-    "kotlin.ranges.FloatRange",
-    "kotlin.ranges.DoubleRange",
-    
-    "kotlin.enums.EnumEntries",
-    "java.text.NumberFormat",
-    "java.util.Locale",
-    "java.util.UUID",
-)
 
 // Where possible, use interfaces that cover a lot of classes
 val wellKnownReadonlyFunctions = setOf(
@@ -46,14 +9,14 @@ val wellKnownReadonlyFunctions = setOf(
     "kotlin.collections.Map.containsKey",
     "kotlin.collections.Map.containsValue",
     "kotlin.collections.Map.get",
-    
+
     // Collection
     "java.util.AbstractCollection.contains",
     "java.util.AbstractCollection.isEmpty",
     "java.util.AbstractCollection.size",
     "java.util.AbstractCollection.iterator",
     "java.util.AbstractList.get",
-    
+
     // kotlin collections
     "kotlin.collections.Iterator.hasNext",
     "kotlin.collections.Iterator.next",
@@ -73,8 +36,8 @@ val wellKnownReadonlyFunctions = setOf(
     "kotlin.collections.reversed",
     "kotlin.collections.intersect",
     "kotlin.Array.get",
-    
-    
+
+
     // Java Reflection
     "java.lang.Class.getField",
     "java.lang.Class.getFields",
@@ -128,61 +91,14 @@ val wellKnownReadonlyFunctions = setOf(
     "java.lang.reflect.Field.getGenericType",
     "java.lang.reflect.Field.getGenericTypeName",
     "java.lang.reflect.Field.getGenericType",
-    
+
     // Kotlin Reflection
     "kotlin.reflect.KMutableProperty0.get",
     "kotlin.reflect.KMutableProperty1.get",
     "kotlin.reflect.KMutableProperty2.get",
-    
-)  + getCommonSequenceIterableFunctions()
 
+    )  + getCommonSequenceIterableFunctions()
 
-// MOST of these are readonly, but some are unfortunately not. :(
-// This is easier than making one huge list of all the acceptable functions
-// TODO: this is not good - could break in future Kotlin versions.
-// All well known functions need to be specified explicitly.
-
-val wellKnownPureFunctions = setOf(
-    "kotlin.internal.ir.CHECK_NOT_NULL", // AKA !!
-    "kotlin.internal.ir.noWhenBranchMatchedException",
-    "kotlin.to",
-    "kotlin.assert",
-    "kotlin.require",
-    "kotlin.requireNotNull",
-    "kotlin.check",
-    "kotlin.checkNotNull",
-
-    "kotlin.let",
-    "kotlin.run",
-    "kotlin.also",
-    "kotlin.apply",
-    "kotlin.takeIf",
-    "kotlin.takeUnless",
-    
-    "kotlin.collections.mutableListOf",
-    "kotlin.collections.mutableSetOf",
-    "kotlin.collections.listOf",
-    "kotlin.collections.arrayListOf",
-    "kotlin.collections.setOf",
-    "kotlin.collections.hashSetOf",
-    "kotlin.collections.mapOf",
-    "kotlin.collections.hashMapOf",
-    "kotlin.sequences.sequenceOf",
-    "kotlin.collections.emptyList",
-    "kotlin.collections.emptySet",
-    "kotlin.collections.emptyMap",
-    
-    "kotlin.collections.component1", // required for destructuring declarations
-    "kotlin.collections.component2",
-    
-    "kotlin.sequences.sequence",
-    "kotlin.sequences.SequenceScope.yield",
-    "kotlin.sequences.SequenceScope.yieldAll",
-    "kotlin.sequences.emptySequence",
-    
-    "kotlin.io.println", // not TECHNICALLY pure, but PRACTICALLY pure - used for debug logs
-    "kotlin.io.print",
-)
 
 fun getCommonSequenceIterableFunctions(): Set<String>{
     val iterableSequenceCommonFunctions = setOf(
@@ -283,7 +199,7 @@ fun getCommonSequenceIterableFunctions(): Set<String>{
         "zip",
         "zipWithNext"
     )
-    
+
     val fullyQualifiedFunctionNames = mutableSetOf<String>()
     for (prefix in listOf("kotlin.sequences.", "kotlin.collections.")){
         for (function in iterableSequenceCommonFunctions) {
@@ -292,26 +208,3 @@ fun getCommonSequenceIterableFunctions(): Set<String>{
     }
     return fullyQualifiedFunctionNames
 }
-
-val wellKnownPureFunctionsPrefixes = listOf(
-    "kotlin.text.",
-    "kotlin.ranges.",
-    "kotlin.math.",
-    "kotlin.comparisons.",
-    "kotlin.random.",
-)
-
-
-/** Classes that hold state internally.
- * This means that if this function created that class, and it does not leak, it can call all functions on it and be considered pure
- */
-val wellKnownInternalStateClasses = setOf(
-    "java.lang.StringBuilder",
-    "java.util.EnumMap",
-    "java.util.HashMap",
-    "java.util.LinkedHashMap",
-    "java.util.ArrayList",
-    "java.util.HashSet",
-    "java.util.LinkedHashSet",
-    "java.util.concurrent.ConcurrentHashMap",
-)
