@@ -90,8 +90,10 @@ class CheckFunctionPurityVisitor(
             isReadonly = false
             isPure = false
 
+            val text = "Function \"${function.name}\" is marked as $declaredFunctionPurity but sets variable \"${varValueDeclaration.name}\""
+            
             report(
-                "Function \"${function.name}\" is marked as $declaredFunctionPurity but sets variable \"${varValueDeclaration.name}\"",
+                text,
                 expression
             )
         }
@@ -199,9 +201,22 @@ class CheckFunctionPurityVisitor(
                     || calledFunction.isSetter && calledFunction.correspondingPropertySymbol?.owner?.hasAnnotation(Annotations.Cache) == true
                 -> FunctionPurity.Pure
 
+            // Function invocation
             calledFunction.name.asString() == "invoke"
-                    && expression.dispatchReceiver?.type?.isFunction() == true
-                -> FunctionPurity.Pure
+                    && receiver?.type?.isFunction() == true
+                -> {
+                    if (receiver is IrGetValue) {
+                        val owner = receiver.symbol.owner
+                        when {
+                            owner.hasAnnotation(Annotations.Pure) -> FunctionPurity.Pure
+                            owner.hasAnnotation(Annotations.Readonly) -> FunctionPurity.Readonly
+                            else -> FunctionPurity.None
+                        }
+                    } else {
+                        // If the receiver is not a variable, we can't determine its purity, so we assume it's not pure
+                        FunctionPurity.None
+                    }
+                }
 
             ExpectedFunctionPurityChecker.isReadonly(calledFunction, purityConfig) -> FunctionPurity.Readonly
 
