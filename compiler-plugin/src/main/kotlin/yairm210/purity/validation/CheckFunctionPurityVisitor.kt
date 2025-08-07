@@ -290,8 +290,33 @@ class CheckFunctionPurityVisitor(
         }
     }
 
-    /** For expressions of type 'function' */
+    private fun raisePassedLambdaErrors(
+        parameterPurity: FunctionPurity,
+        parameterExpression: IrFunctionExpression
+    ) {
+        // If this functions is already on the parameter purity level or higher, we already check it satisfies the required purity - no-op
+        // Otherwise, we instantiate a new checkFunctionPurityVisitor to check the lambda.
+
+        // There is still a case where we will check things doubly:
+        // If the parent function is readonly, and the parameter is pure, we'll create a Pure visitor
+        // That means that readonly violations in the lambda will be raised by both the parent and the child
+        if (declaredFunctionPurity >= parameterPurity) return
+        val visitor = CheckFunctionPurityVisitor(
+            function = parameterExpression.function,
+            declaredFunctionPurity = parameterPurity,
+            messageCollector = messageCollector,
+            purityConfig = purityConfig,
+        )
+
+        // If there are problems, this will raise them as-is
+        parameterExpression.function.accept(visitor, Unit)
+    }
+
+    /** For expressions of type 'function'
+     * Does not include lambdas since they require actual checking of the function body.
+     * */
     private fun getExpressionPurity(parameterExpression: IrExpression?) = when {
+        
         parameterExpression is IrGetValue -> { // local variable
             when {
                 parameterExpression.symbol.owner.hasAnnotation(Annotations.Pure) -> FunctionPurity.Pure
@@ -326,28 +351,6 @@ class CheckFunctionPurityVisitor(
         else -> null
     }
 
-    private fun raisePassedLambdaErrors(
-        parameterPurity: FunctionPurity,
-        parameterExpression: IrFunctionExpression
-    ) {
-        // If this functions is already on the parameter purity level or higher, we already check it satisfies the required purity - no-op
-        // Otherwise, we instantiate a new checkFunctionPurityVisitor to check the lambda.
-
-        // There is still a case where we will check things doubly:
-        // If the parent function is readonly, and the parameter is pure, we'll create a Pure visitor
-        // That means that readonly violations in the lambda will be raised by both the parent and the child
-        if (declaredFunctionPurity >= parameterPurity) return
-        val visitor = CheckFunctionPurityVisitor(
-            function = parameterExpression.function,
-            declaredFunctionPurity = parameterPurity,
-            messageCollector = messageCollector,
-            purityConfig = purityConfig,
-        )
-
-        // If there are problems, this will raise them as-is
-        parameterExpression.function.accept(visitor, Unit)
-    }
-
     override fun visitFunction(declaration: IrFunction, data: Unit) {
         // Ensure that all annotated parameters have acceptable default values
         
@@ -361,8 +364,26 @@ class CheckFunctionPurityVisitor(
                 else -> FunctionPurity.None
             }
             if (parameterPurity == FunctionPurity.None) continue
+
+
+            val defaultExpression = defaultValue.expression
+            if (defaultExpression is IrFunctionExpression) { // lambda expression
+                // If this functions is already on the parameter purity level or higher, we already check it satisfies the required purity - no-op
+                if (declaredFunctionPurity >= parameterPurity) return
+                
+                val visitor = CheckFunctionPurityVisitor(
+                    function = defaultExpression.function,
+                    declaredFunctionPurity = parameterPurity,
+                    messageCollector = messageCollector,
+                    purityConfig = purityConfig,
+                )
+
+                // If there are problems, this will raise them as-is
+                defaultExpression.function.accept(visitor, Unit)
+                continue
+            }
             
-            val defaultValuePurity = getExpressionPurity(defaultValue.expression)
+            val defaultValuePurity = getExpressionPurity(defaultExpression)
             if (defaultValuePurity == null) {
                 report(
                     "Function \"${declaration.name}\" has parameter \"${parameter.name}\" that is marked as $parameterPurity, " +
