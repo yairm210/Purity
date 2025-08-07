@@ -1,7 +1,7 @@
 @file:OptIn(UnsafeDuringIrConstructionAPI::class)
 package yairm210.purity.validation
 
-import org.jetbrains.kotlin.backend.common.checkDeclarationParents
+import com.sun.org.apache.xpath.internal.operations.Bool
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageLocation
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
@@ -265,79 +265,101 @@ class CheckFunctionPurityVisitor(
 
             if (parameterPurity == FunctionPurity.None) continue
 
-            if (parameterExpression is IrFunctionExpression) { // lambda expression
-                // Must be readonly
-                // We instantiate a new checkFunctionPurityVisitor to check the lambda.
-                // We don't use the current visitor because the lambda may have a different purity than the entire function,
-                //  e.g  a readonly function that calls a pure function, sending a pure lambda.
-
-
-                // If this functions is already on the parameter purity level or higher, we're already checking!
-                // There is still a case where we will check things doubly:
-                // If the parent function is readonly, and the parameter is pure, we'll create a Pure visitor
-                // That means that readonly violations in the lambda will be raised by both the parent and the child
-                if (declaredFunctionPurity < parameterPurity) {
-                    val visitor = CheckFunctionPurityVisitor(
-                        function = parameterExpression.function,
-                        declaredFunctionPurity = parameterPurity,
-                        messageCollector = messageCollector,
-                        purityConfig = purityConfig,
-                    )
-
-                    // If there are problems, this will raise them as-is
-                    parameterExpression.function.accept(visitor, Unit)
+            when (parameterExpression) {
+                is IrFunctionExpression -> { // lambda expression
+                    raisePassedLambdaErrors(parameterPurity, parameterExpression)
                 }
-                continue
-            }
-            
-            if (parameterExpression is IrGetValue){ // local variable
-                val possibleAnnotations = when (parameterPurity) {
-                    FunctionPurity.Pure -> listOf(Annotations.Pure)
-                    FunctionPurity.Readonly -> listOf(Annotations.Readonly, Annotations.Pure)
-                    FunctionPurity.None -> listOf()
+                is IrGetValue -> { // local variable
+                    raisePassedLocalVariableErrors(parameterPurity, parameterExpression, calledFunction, parameter, expression)
                 }
-                
-                // If we're passing a @Readonly to @Readonly or a @Pure to @Pure, that's fine
-                val hasAcceptableAnnotation = possibleAnnotations.any { 
-                    parameterExpression.symbol.owner.hasAnnotation(it) 
+                is IrFunctionReference -> { // e.g. ::function
+                    raisePassedFunctionReferenceErrors(parameterExpression, parameterPurity, calledFunction, parameter, expression)
                 }
-                
-                if (!hasAcceptableAnnotation) {
+                else -> {
                     report(
                         "Function \"${function.name}\" calls \"${calledFunction.fqNameForIrSerialization}\" " +
-                                "with parameter \"${parameter.name}\" that is marked as $parameterPurity, but the value sent is not marked as @$parameterPurity.",
+                                "with parameter \"${parameter.name}\" that is marked as $parameterPurity, but the purity of the value sent could not be determined.",
                         expression
                     )
                 }
-                continue
             }
-            
-            if (parameterExpression is IrFunctionReference){ // e.g. ::function
-                val referencedFunction = parameterExpression.symbol.owner
-                val referencedFunctionPurity = // simplified check. If we see we need complexity we can add it later 
-                    when {
-                        ExpectedFunctionPurityChecker.isMarkedAsPure(referencedFunction, purityConfig) -> FunctionPurity.Pure
-                        ExpectedFunctionPurityChecker.isReadonly(referencedFunction, purityConfig) -> FunctionPurity.Readonly
-                        else -> FunctionPurity.None
-                    }
-                
-                if (referencedFunctionPurity < parameterPurity) {
-                    report(
-                        "Function \"${function.name}\" calls \"${calledFunction.fqNameForIrSerialization}\" " +
-                                "with parameter \"${parameter.name}\" that is marked as $parameterPurity, but the value sent is not $parameterPurity.",
-                        expression
-                    )
-                }
-                continue
-            }
-            
+        }
+    }
+
+    private fun raisePassedLambdaErrors(
+        parameterPurity: FunctionPurity,
+        parameterExpression: IrFunctionExpression
+    ) {
+        // If this functions is already on the parameter purity level or higher, we already check it satisfies the required purity - no-op
+        // Otherwise, we instantiate a new checkFunctionPurityVisitor to check the lambda.
+
+        // There is still a case where we will check things doubly:
+        // If the parent function is readonly, and the parameter is pure, we'll create a Pure visitor
+        // That means that readonly violations in the lambda will be raised by both the parent and the child
+        if (declaredFunctionPurity >= parameterPurity) return
+        val visitor = CheckFunctionPurityVisitor(
+            function = parameterExpression.function,
+            declaredFunctionPurity = parameterPurity,
+            messageCollector = messageCollector,
+            purityConfig = purityConfig,
+        )
+
+        // If there are problems, this will raise them as-is
+        parameterExpression.function.accept(visitor, Unit)
+    }
+
+
+    private fun raisePassedLocalVariableErrors(
+        parameterPurity: FunctionPurity,
+        parameterExpression: IrGetValue,
+        calledFunction: IrSimpleFunction,
+        parameter: IrValueParameter,
+        expression: IrCall
+    ) {
+        val possibleAnnotations = when (parameterPurity) {
+            FunctionPurity.Pure -> listOf(Annotations.Pure)
+            FunctionPurity.Readonly -> listOf(Annotations.Readonly, Annotations.Pure)
+            FunctionPurity.None -> listOf()
+        }
+
+        // If we're passing a @Readonly to @Readonly or a @Pure to @Pure, that's fine
+        val hasAcceptableAnnotation = possibleAnnotations.any {
+            parameterExpression.symbol.owner.hasAnnotation(it)
+        }
+
+        if (!hasAcceptableAnnotation) {
             report(
                 "Function \"${function.name}\" calls \"${calledFunction.fqNameForIrSerialization}\" " +
-                        "with parameter \"${parameter.name}\" that is marked as $parameterPurity, but the value sent is not a lambda function.",
+                        "with parameter \"${parameter.name}\" that is marked as $parameterPurity, but the value sent is not marked as @$parameterPurity.",
                 expression
             )
         }
     }
+    
+    private fun raisePassedFunctionReferenceErrors(
+        parameterExpression: IrFunctionReference,
+        parameterPurity: FunctionPurity,
+        calledFunction: IrSimpleFunction,
+        parameter: IrValueParameter,
+        expression: IrCall
+    ) {
+        val referencedFunction = parameterExpression.symbol.owner
+        val referencedFunctionPurity = // simplified check. If we see we need complexity we can add it later 
+            when {
+                ExpectedFunctionPurityChecker.isMarkedAsPure(referencedFunction, purityConfig) -> FunctionPurity.Pure
+                ExpectedFunctionPurityChecker.isReadonly(referencedFunction, purityConfig) -> FunctionPurity.Readonly
+                else -> FunctionPurity.None
+            }
+
+        if (referencedFunctionPurity < parameterPurity) {
+            report(
+                "Function \"${function.name}\" calls \"${calledFunction.fqNameForIrSerialization}\" " +
+                        "with parameter \"${parameter.name}\" that is marked as $parameterPurity, but the value sent is not $parameterPurity.",
+                expression
+            )
+        }
+    }
+
 
     override fun visitElement(element: IrElement, data: Unit) {
         element.acceptChildren(this, data)

@@ -226,6 +226,26 @@ fun testPassingReadonlyFunction(){
             invoker(::notPassable) // This should fail, since notPassable is not marked as @Readonly
         }
     }
+//    
+//    class ClassWithReadonlyVariable(
+//        @Readonly val readonlyVariableFun: (Int) -> Unit = { i:Int -> println("Hello, World!") },
+//        val unmarkedFun: (Int) -> Unit = { i:Int -> println("Hello, World!") }
+//    ) {
+//        fun passThroughReadonlyVariable() {
+//            invoker(readonlyVariableFun) // allowed, since readonlyVariable is marked as @Readonly
+//        }
+//        
+//        @TestExpectCompileError
+//        fun notPassableReadonlyVariable() {
+//            invoker(unmarkedFun) // This should fail, since the lambda is not marked as @Readonly
+//        }
+//    }
+//    
+//    @TestExpectCompileError
+//    fun testCannotSendNonReadonlyToClassConstructorExpectingReadonly(){
+//        var x = 5
+//        val classWithReadonlyVariable = ClassWithReadonlyVariable({i:Int -> x = 3})
+//    }
 }
 
 enum class Order{
