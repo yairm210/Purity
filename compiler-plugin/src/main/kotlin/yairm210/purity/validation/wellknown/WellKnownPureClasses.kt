@@ -21,7 +21,9 @@ val wellKnownPureClasses = setOf(
     "kotlin.ranges.DoubleRange",
 
     "kotlin.enums.EnumEntries",
+    
     "java.text.NumberFormat",
     "java.util.Locale",
     "java.util.UUID",
+    "java.lang.Integer",
 )

@@ -13,11 +13,11 @@ Install the plugin by adding the following to your `build.gradle.kts`:
 
 ```kotlin
 plugins {
-    id("io.github.yairm210.purity-plugin") version "0.0.45"
+    id("io.github.yairm210.purity-plugin") version "0.0.46"
 }
 
 dependencies {
-  compileOnly("io.github.yairm210:purity-annotations:0.0.45")
+  compileOnly("io.github.yairm210:purity-annotations:0.0.46")
 }
 ```
 
@@ -66,3 +66,10 @@ fun actsAsPure(): Int {
     return external
 }
 ```
+
+### Breaking usage
+
+Purity is designed to be useful, and thus is makes some assumptions which if untrue may lead to misleading results:
+
+- It assumes constructors to be pure
+- It assumes getters to be readonly

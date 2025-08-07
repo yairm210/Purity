@@ -183,6 +183,11 @@ fun testPassingReadonlyFunction(){
         function(4) // Can invoke input params marked as @Readonly
     }
 
+    @Readonly @TestExpectCompileError
+    fun invokerError(function: (Int) -> Unit) {
+        function(4) // Cannot invoke non-Readonly function
+    }
+
     // We sent a non-readonly function, so this should fail
     fun testFunctionNotReadonly() {
         invoker @TestExpectCompileError { i:Int -> println("Hello, World!") }
@@ -333,7 +338,6 @@ fun testInheritingFunctionsInheritSuppression(){
 }
 
 fun testForLocalStateAnnotation() {
-    
     @Readonly
     fun localStateFunction() {
         // This is recognized as local state

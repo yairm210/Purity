@@ -16,6 +16,7 @@ val wellKnownReadonlyFunctions = setOf(
     "java.util.AbstractCollection.size",
     "java.util.AbstractCollection.iterator",
     "java.util.AbstractList.get",
+    "java.util.BitSet.get",
 
     // kotlin collections
     "kotlin.collections.Iterator.hasNext",
@@ -31,10 +32,17 @@ val wellKnownReadonlyFunctions = setOf(
     "kotlin.collections.dropLastWhile",
     "kotlin.collections.isNullOrEmpty",
     "kotlin.collections.filterKeys",
-    "kotlin.collections.minus",
-    "kotlin.collections.plus",
+    "kotlin.collections.minus", // creates a new instance
+    "kotlin.collections.plus", // creates a new instanceg
     "kotlin.collections.reversed",
     "kotlin.collections.intersect",
+    "kotlin.collections.getValue",
+    "kotlin.collections.randomOrNull",
+    "kotlin.collections.Collection.isEmpty",
+    "kotlin.collections.subtract",
+    "kotlin.collections.union",
+    "kotlin.collections.intersect",
+    "kotlin.collections.List.indexOf",
     "kotlin.Array.get",
 
 

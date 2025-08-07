@@ -10,6 +10,9 @@ val wellKnownPureFunctions = setOf(
     "kotlin.requireNotNull",
     "kotlin.check",
     "kotlin.checkNotNull",
+    "kotlin.lazy",
+    "kotlin.getValue",
+    "kotlin.error",
 
     "kotlin.let",
     "kotlin.run",
@@ -20,16 +23,17 @@ val wellKnownPureFunctions = setOf(
 
     "kotlin.collections.mutableListOf",
     "kotlin.collections.mutableSetOf",
+    "kotlin.collections.mutableMapOf",
     "kotlin.collections.listOf",
-    "kotlin.collections.arrayListOf",
     "kotlin.collections.setOf",
-    "kotlin.collections.hashSetOf",
     "kotlin.collections.mapOf",
-    "kotlin.collections.hashMapOf",
-    "kotlin.sequences.sequenceOf",
     "kotlin.collections.emptyList",
     "kotlin.collections.emptySet",
     "kotlin.collections.emptyMap",
+    "kotlin.collections.arrayListOf",
+    "kotlin.collections.hashSetOf",
+    "kotlin.collections.hashMapOf",
+    "kotlin.sequences.sequenceOf",
 
     "kotlin.collections.component1", // required for destructuring declarations
     "kotlin.collections.component2",
