@@ -177,6 +177,8 @@ fun testMarkingInterfaceMarksImplementations() {
 }
 
 
+@TestExpectCompileError // This is a hack - since internal notPassablePasser fails on passing function references, this will fail too
+// I couldn't find a way to check IrCall parameter passing *only* at the bottom-most function, which annoys me -_-
 fun testPassingReadonlyFunction(){
     @Readonly
     fun invoker(@Readonly function: (Int) -> Unit) {
@@ -210,6 +212,18 @@ fun testPassingReadonlyFunction(){
         
         fun passThroughPureToReadonly(@Pure function: (Int) -> Unit) {
             invoker(function)
+        }
+    }
+    
+    class ClassWithReadonlyFunction{
+        @Readonly
+        fun passable(i:Int) {}
+        fun passer(){ invoker(::passable) }
+        fun notPassable(i:Int) {}
+        
+        @TestExpectCompileError
+        fun notPassablePasser() {
+            invoker(::notPassable) // This should fail, since notPassable is not marked as @Readonly
         }
     }
 }

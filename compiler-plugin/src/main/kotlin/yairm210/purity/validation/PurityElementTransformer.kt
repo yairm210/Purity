@@ -16,7 +16,10 @@ import org.jetbrains.kotlin.name.FqName
 import yairm210.purity.PurityConfig
 import yairm210.purity.boilerplate.DebugLogger
 
-
+/** 
+ * Iterates over all functions in the IR.
+ * For each function, creates a CheckFunctionPurityVisitor to raise errors for that specific function.
+ * */
 internal class PurityElementTransformer(
     private val pluginContext: IrPluginContext,
     private val debugLogger: DebugLogger,
@@ -95,7 +98,9 @@ internal class PurityElementTransformer(
         val actualPurity = visitor.actualFunctionPurity()
 
         if (visitor.hasExpectCompileErrorAnnotation) { // opposite land - fail is success, success is fail
-            if (actualPurity >= functionDeclaredPurity)
+            // We use hasErrored and not function purity, because there are other kinds of exceptions
+            // For example, passing a non-readonly variable to a @Readonly parameter doesn't violate purity, but it is an error!
+            if (!visitor.hasErrored) 
                 messageCollector.report(
                     CompilerMessageSeverity.ERROR,
                     "Function \"${declaration.name}\" should fail on purity checks, but succeeds!",

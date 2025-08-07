@@ -1,6 +1,7 @@
 @file:OptIn(UnsafeDuringIrConstructionAPI::class)
 package yairm210.purity.validation
 
+import org.jetbrains.kotlin.backend.common.checkDeclarationParents
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageLocation
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
@@ -47,7 +48,7 @@ class CheckFunctionPurityVisitor(
         
     private var isReadonly = true
     private var isPure = true
-    private var hasErrored = false
+    var hasErrored = false
 
     val hasExpectCompileErrorAnnotation = function.hasAnnotation(Annotations.TestExpectCompileError)
     private val errorSeverity = if (hasExpectCompileErrorAnnotation) CompilerMessageSeverity.WARNING else CompilerMessageSeverity.ERROR
@@ -252,7 +253,7 @@ class CheckFunctionPurityVisitor(
 
 
     private fun checkMarkedParameters(expression: IrCall) {
-            
+
         val calledFunction = expression.symbol.owner
         
         for ((parameter, parameterExpression) in expression.getAllArgumentsWithIr()) {
@@ -289,7 +290,7 @@ class CheckFunctionPurityVisitor(
                 continue
             }
             
-            if (parameterExpression is IrGetValue){
+            if (parameterExpression is IrGetValue){ // local variable
                 val possibleAnnotations = when (parameterPurity) {
                     FunctionPurity.Pure -> listOf(Annotations.Pure)
                     FunctionPurity.Readonly -> listOf(Annotations.Readonly, Annotations.Pure)
@@ -305,6 +306,25 @@ class CheckFunctionPurityVisitor(
                     report(
                         "Function \"${function.name}\" calls \"${calledFunction.fqNameForIrSerialization}\" " +
                                 "with parameter \"${parameter.name}\" that is marked as $parameterPurity, but the value sent is not marked as @$parameterPurity.",
+                        expression
+                    )
+                }
+                continue
+            }
+            
+            if (parameterExpression is IrFunctionReference){ // e.g. ::function
+                val referencedFunction = parameterExpression.symbol.owner
+                val referencedFunctionPurity = // simplified check. If we see we need complexity we can add it later 
+                    when {
+                        ExpectedFunctionPurityChecker.isMarkedAsPure(referencedFunction, purityConfig) -> FunctionPurity.Pure
+                        ExpectedFunctionPurityChecker.isReadonly(referencedFunction, purityConfig) -> FunctionPurity.Readonly
+                        else -> FunctionPurity.None
+                    }
+                
+                if (referencedFunctionPurity < parameterPurity) {
+                    report(
+                        "Function \"${function.name}\" calls \"${calledFunction.fqNameForIrSerialization}\" " +
+                                "with parameter \"${parameter.name}\" that is marked as $parameterPurity, but the value sent is not $parameterPurity.",
                         expression
                     )
                 }
