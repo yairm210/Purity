@@ -269,46 +269,15 @@ class CheckFunctionPurityVisitor(
                 continue
             }
 
-            val actualExpressionPurity: FunctionPurity = when {
-                parameterExpression is IrGetValue -> { // local variable
-                    when {
-                        parameterExpression.symbol.owner.hasAnnotation(Annotations.Pure) -> FunctionPurity.Pure
-                        parameterExpression.symbol.owner.hasAnnotation(Annotations.Readonly) -> FunctionPurity.Readonly
-                        else -> FunctionPurity.None
-                    }
-                }
-                
-                parameterExpression is IrFunctionReference -> { // e.g. ::function
-                    val referencedFunction = parameterExpression.symbol.owner
-                    when {
-                        ExpectedFunctionPurityChecker.isMarkedAsPure(referencedFunction, purityConfig) -> FunctionPurity.Pure
-                        ExpectedFunctionPurityChecker.isReadonly(referencedFunction, purityConfig) -> FunctionPurity.Readonly
-                        else -> FunctionPurity.None
-                    }
-                }
-                
-                // val getter
-                parameterExpression is IrCall && parameterExpression.symbol.owner.isGetter
-                        && !parameterExpression.symbol.owner.correspondingPropertySymbol!!.owner.isVar -> {
-
-                    val calledFunction = parameterExpression.symbol.owner
-                    val property = calledFunction.correspondingPropertySymbol!!.owner
-                    
-                    when {
-                        property.hasAnnotation(Annotations.Pure) -> FunctionPurity.Pure
-                        property.hasAnnotation(Annotations.Readonly) -> FunctionPurity.Readonly
-                        else -> FunctionPurity.None
-                    }
-                }
-                
-                else -> {
-                    report(
-                        "Function \"${function.name}\" calls \"${calledFunction.fqNameForIrSerialization}\" " +
-                                "with parameter \"${parameter.name}\" that is marked as $parameterPurity, but the purity of the value sent could not be determined.",
-                        expression
-                    )
-                    continue
-                }
+            val actualExpressionPurity: FunctionPurity? = getExpressionPurity(parameterExpression)
+            
+            if (actualExpressionPurity == null) {
+                report(
+                    "Function \"${function.name}\" calls \"${calledFunction.fqNameForIrSerialization}\" " +
+                            "with parameter \"${parameter.name}\" that is marked as $parameterPurity, but the purity of the value sent could not be determined.",
+                    expression
+                )
+                continue
             }
             
             if (actualExpressionPurity < parameterPurity) {
@@ -319,6 +288,42 @@ class CheckFunctionPurityVisitor(
                 )
             }
         }
+    }
+
+    /** For expressions of type 'function' */
+    private fun getExpressionPurity(parameterExpression: IrExpression?) = when {
+        parameterExpression is IrGetValue -> { // local variable
+            when {
+                parameterExpression.symbol.owner.hasAnnotation(Annotations.Pure) -> FunctionPurity.Pure
+                parameterExpression.symbol.owner.hasAnnotation(Annotations.Readonly) -> FunctionPurity.Readonly
+                else -> FunctionPurity.None
+            }
+        }
+
+        parameterExpression is IrFunctionReference -> { // e.g. ::function
+            val referencedFunction = parameterExpression.symbol.owner
+            when {
+                ExpectedFunctionPurityChecker.isMarkedAsPure(referencedFunction, purityConfig) -> FunctionPurity.Pure
+                ExpectedFunctionPurityChecker.isReadonly(referencedFunction, purityConfig) -> FunctionPurity.Readonly
+                else -> FunctionPurity.None
+            }
+        }
+
+        // val getter
+        parameterExpression is IrCall && parameterExpression.symbol.owner.isGetter
+                && !parameterExpression.symbol.owner.correspondingPropertySymbol!!.owner.isVar -> {
+
+            val calledFunction = parameterExpression.symbol.owner
+            val property = calledFunction.correspondingPropertySymbol!!.owner
+
+            when {
+                property.hasAnnotation(Annotations.Pure) -> FunctionPurity.Pure
+                property.hasAnnotation(Annotations.Readonly) -> FunctionPurity.Readonly
+                else -> FunctionPurity.None
+            }
+        }
+
+        else -> null
     }
 
     private fun raisePassedLambdaErrors(
@@ -341,6 +346,39 @@ class CheckFunctionPurityVisitor(
 
         // If there are problems, this will raise them as-is
         parameterExpression.function.accept(visitor, Unit)
+    }
+
+    override fun visitFunction(declaration: IrFunction, data: Unit) {
+        // Ensure that all annotated parameters have acceptable default values
+        
+        val valueParameters = declaration.valueParameters
+        for (parameter in valueParameters) {
+            val defaultValue = parameter.defaultValue ?: continue
+            
+            val parameterPurity = when {
+                parameter.hasAnnotation(Annotations.Pure) -> FunctionPurity.Pure
+                parameter.hasAnnotation(Annotations.Readonly) -> FunctionPurity.Readonly
+                else -> FunctionPurity.None
+            }
+            if (parameterPurity == FunctionPurity.None) continue
+            
+            val defaultValuePurity = getExpressionPurity(defaultValue.expression)
+            if (defaultValuePurity == null) {
+                report(
+                    "Function \"${declaration.name}\" has parameter \"${parameter.name}\" that is marked as $parameterPurity, " +
+                            "but the default value's purity could not be determined.",
+                    declaration
+                )
+            }
+            else if (defaultValuePurity < parameterPurity) {
+                report(
+                    "Function \"${declaration.name}\" has parameter \"${parameter.name}\" that is marked as $parameterPurity, " +
+                            "but the default value's purity is not $parameterPurity.",
+                    declaration
+                )
+            }
+        }
+        super.visitFunction(declaration, data)
     }
 
     override fun visitElement(element: IrElement, data: Unit) {

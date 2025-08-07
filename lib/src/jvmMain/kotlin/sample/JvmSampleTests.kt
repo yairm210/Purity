@@ -223,6 +223,14 @@ fun testPassingReadonlyFunction() {
             invoker(::notPassable) // This should fail, since notPassable is not marked as @Readonly
         }
     }
+    
+    var f = 5
+    @TestExpectCompileError
+    fun testDefaultValueAlsoChecked(
+        @Readonly function: (Int) -> Unit = { f = 6 } // Default function is marked as @Readonly
+    ) {
+        invoker(function) // This should be allowed, since the default function is marked as @Readonly
+    }
 }
 
 enum class Order{
