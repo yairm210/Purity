@@ -263,6 +263,7 @@ class CheckFunctionPurityVisitor(
             }
 
             if (parameterPurity == FunctionPurity.None) continue
+            if (parameterExpression == null) continue // No value passed for this parameter - use default value
             
             if (parameterExpression is IrFunctionExpression) { // lambda expression
                 raisePassedLambdaErrors(parameterPurity, parameterExpression)

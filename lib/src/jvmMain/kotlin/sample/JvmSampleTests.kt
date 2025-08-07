@@ -231,6 +231,10 @@ fun testPassingReadonlyFunction() {
     fun testAcceptableDefaultValue(
         @Readonly function: (Int) -> Unit = { println() } // Default function is marked as @Readonly
     ) {}
+    
+    fun testCallingUsingDefault(){
+        testAcceptableDefaultValue()
+    }
 }
 
 enum class Order{
