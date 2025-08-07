@@ -179,73 +179,50 @@ fun testMarkingInterfaceMarksImplementations() {
 
 @TestExpectCompileError // This is a hack - since internal notPassablePasser fails on passing function references, this will fail too
 // I couldn't find a way to check IrCall parameter passing *only* at the bottom-most function, which annoys me -_-
-fun testPassingReadonlyFunction(){
+fun testPassingReadonlyFunction() {
     @Readonly
     fun invoker(@Readonly function: (Int) -> Unit) {
         function(4) // Can invoke input params marked as @Readonly
     }
 
-    @Readonly @TestExpectCompileError
+    @Readonly
+    @TestExpectCompileError
     fun invokerError(function: (Int) -> Unit) {
         function(4) // Cannot invoke non-Readonly function
     }
 
     // We sent a non-readonly function, so this should fail
     fun testFunctionNotReadonly() {
-        invoker @TestExpectCompileError { i:Int -> println("Hello, World!") }
+        invoker @TestExpectCompileError { i: Int -> println("Hello, World!") }
     }
 
-    fun testFunctionReadonly(){
-        invoker { 1 + 1 }
-    }
-    
+    fun testFunctionReadonly() = invoker { 1 + 1 }
+
     fun testPassThroughFunction() {
-        fun passThroughReadonly(@Readonly function: (Int) -> Unit) {
+        fun passThroughReadonly(@Readonly function: (Int) -> Unit) =
             invoker(function) // allowed, since function is marked as @Readonly as well
-        }
-        
-        fun pureReceiver(@Pure function: (Int) -> Unit) { }
-        
-        fun passThroughPure(@Pure function: (Int) -> Unit) {
+
+        fun pureReceiver(@Pure function: (Int) -> Unit) {}
+
+        fun passThroughPure(@Pure function: (Int) -> Unit) =
             pureReceiver(function) // allowed, since function is marked as @Readonly as well
-        }
-        
-        fun passThroughPureToReadonly(@Pure function: (Int) -> Unit) {
-            invoker(function)
-        }
+
+        fun passThroughPureToReadonly(@Pure function: (Int) -> Unit) = invoker(function)
     }
-    
-    class ClassWithReadonlyFunction{
+
+    class ClassWithReadonlyFunction {
         @Readonly
-        fun passable(i:Int) {}
-        fun passer(){ invoker(::passable) }
-        fun notPassable(i:Int) {}
-        
+        fun passable(i: Int) {}
+
+        fun passer() = invoker(::passable)
+
+        fun notPassable(i: Int) {}
+
         @TestExpectCompileError
         fun notPassablePasser() {
             invoker(::notPassable) // This should fail, since notPassable is not marked as @Readonly
         }
     }
-//    
-//    class ClassWithReadonlyVariable(
-//        @Readonly val readonlyVariableFun: (Int) -> Unit = { i:Int -> println("Hello, World!") },
-//        val unmarkedFun: (Int) -> Unit = { i:Int -> println("Hello, World!") }
-//    ) {
-//        fun passThroughReadonlyVariable() {
-//            invoker(readonlyVariableFun) // allowed, since readonlyVariable is marked as @Readonly
-//        }
-//        
-//        @TestExpectCompileError
-//        fun notPassableReadonlyVariable() {
-//            invoker(unmarkedFun) // This should fail, since the lambda is not marked as @Readonly
-//        }
-//    }
-//    
-//    @TestExpectCompileError
-//    fun testCannotSendNonReadonlyToClassConstructorExpectingReadonly(){
-//        var x = 5
-//        val classWithReadonlyVariable = ClassWithReadonlyVariable({i:Int -> x = 3})
-//    }
 }
 
 enum class Order{
