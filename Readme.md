@@ -1,4 +1,4 @@
-#  <img src="docs/img/Purity.svg" width="24"> Purity
+# <img src="docs/img/Purity.svg" width="24">  Purity
 
 ## What is this?
 
@@ -43,7 +43,7 @@ fun readonlyFunction(list: List<String>): Int {
 
 ### Advanced usage
 
-Further details are available in the [documentation site](https://yairm210.github.io/Purity/)
+Further details are available in the [documentation](https://yairm210.github.io/Purity/)
 
 ### Rules
 
@@ -61,3 +61,4 @@ Any violation of these rules creates a compilation error.
 
 Projects that helped me understand how to setup the project:
 * [Foso/KotlinCompilerPluginExample](https://github.com/Foso/KotlinCompilerPluginExample)
+* [bnorm/kotlin-power-assert](https://github.com/bnorm/kotlin-power-assert)
