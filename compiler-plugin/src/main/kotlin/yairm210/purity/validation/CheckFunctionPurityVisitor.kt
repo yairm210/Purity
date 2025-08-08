@@ -90,7 +90,7 @@ class CheckFunctionPurityVisitor(
             isReadonly = false
             isPure = false
 
-            val text = "Function \"${function.name}\" is marked as $declaredFunctionPurity but sets variable \"${varValueDeclaration.name}\""
+            val text = "Function \"${function.name}\" is marked as $declaredFunctionPurity but sets variable \"${varValueDeclaration.name}\"\n"
             
             report(
                 text,
@@ -217,12 +217,58 @@ class CheckFunctionPurityVisitor(
         if (calledFunctionPurity < FunctionPurity.Readonly) isReadonly = false
 
         if (declaredFunctionPurity > calledFunctionPurity) {
-            report(
-                "Function \"${function.name}\" is marked as $declaredFunctionPurity " +
-                        "but calls non-$declaredFunctionPurity function \"${expression.symbol.owner.fqNameForIrSerialization}\"",
-                expression
-            )
+            reportUnacceptableFunctionCall(expression, calledFunction, calledFunctionPurity, receiver)
         }
+    }
+
+    private fun reportUnacceptableFunctionCall(
+        expression: IrCall,
+        calledFunction: IrSimpleFunction,
+        calledFunctionPurity: FunctionPurity,
+        receiver: IrExpression?
+    ) {
+        var message = "Function \"${function.name}\" is marked as $declaredFunctionPurity " +
+                "but calls non-$declaredFunctionPurity function \"${expression.symbol.owner.fqNameForIrSerialization}\".\n"
+
+        // Calling setter of property
+        if (calledFunction.isSetter && calledFunction.correspondingPropertySymbol!!.owner.parentClassOrNull == function.parentClassOrNull) {
+            message += "You are trying to set a mutable property \"${calledFunction.correspondingPropertySymbol!!.owner.name}\" declared within the same class.\n" +
+                    "If this property is meant be be a cache, it must be annotated with @Cache, and be private to the class."
+        } else {
+            message += " - If this is in your code, add @$declaredFunctionPurity annotation to the function.\n" +
+                    " - If this is in external code, you can declare it as $declaredFunctionPurity via the PurityConfiguration in gradle - see https://yairm210.github.io/Purity/usage/configuration/#handling-external-classes \n"
+        }
+
+        // Check if relevant to declare it @Immutable
+        if (declaredFunctionPurity == FunctionPurity.Pure && calledFunctionPurity == FunctionPurity.Readonly) {
+            if (receiver is IrCall && receiver.symbol.owner.isGetter) // property getter 
+                message += " - Since the function called is @Readonly, you can annotate \"${receiver.symbol.owner.correspondingPropertySymbol!!.owner.name}\" as @Immutable so the call will be considered @Pure - see https://yairm210.github.io/Purity/usage/advanced-usage/#marking-variables-as-immutable \n"
+            if (receiver is IrGetValue) // local variable
+                message += " - Since the function called is @Readonly, you can annotate \"${receiver.symbol.owner.name}\" as @Immutable so the call will be considered @Pure - see https://yairm210.github.io/Purity/usage/advanced-usage/#marking-variables-as-immutable \n"
+        }
+
+        // Check for vals declared within the function that can be marked @LocalState
+        if (receiver is IrGetValue) {
+            val symbolOwner = receiver.symbol.owner
+            if (symbolOwner is IrVariable && !symbolOwner.isVar) {
+                val className = symbolOwner.type.classFqName?.asString()
+                if (className != null) {
+                    message += if (className in wellKnownInternalStateClasses
+                        || className in purityConfig.wellKnownInternalStateClassesFromUser
+                    ) {
+                        " - Since $className does not modify any external state (only internal), if "
+                    } else {
+                        " - If $className does not modify any external state (only internal), AND "
+                    }
+                    message += "this instance is inaccessible by other places in the code, you can annotate ${symbolOwner.name} as @LocalState - see https://yairm210.github.io/Purity/usage/advanced-usage/#local-state-variables \n"
+                }
+            }
+        }
+
+        report(
+            message,
+            expression
+        )
     }
 
     private fun representsAnnotationBearer(irExpression: IrExpression, annotation: FqName): Boolean {
@@ -271,9 +317,12 @@ class CheckFunctionPurityVisitor(
             }
             
             if (actualExpressionPurity < parameterPurity) {
+                val message =  "Function \"${function.name}\" calls \"${calledFunction.fqNameForIrSerialization}\" " +
+                        "with parameter \"${parameter.name}\" that is marked as $parameterPurity, but the value sent is not $parameterPurity.\n" +
+                        " - If passing a function input, annotate it as @$parameterPurity.\n"+
+                        " - If passing a function reference (::function), ensure the function itself is annotated as @$parameterPurity.\n"
                 report(
-                    "Function \"${function.name}\" calls \"${calledFunction.fqNameForIrSerialization}\" " +
-                            "with parameter \"${parameter.name}\" that is marked as $parameterPurity, but the value sent is not $parameterPurity.",
+                    message,
                     expression
                 )
             }

@@ -1,3 +1,8 @@
 nav:
     - usage
+        - advanced-usage
+        - configuration
     - development
+        - principles
+        - development
+        - kotlin-ir-documentation

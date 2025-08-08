@@ -103,8 +103,8 @@ fun testFunctionsCanOnlyCallTheirPurityAndHigher() {
     }
 }
 
-fun testReadonlyFunctionsOnImmutableConsideredPure(){
-    @Immutable
+fun testReadonlyFunctionsOnImmutableFunctionVariableConsideredPure(){
+    @Immutable 
     val immutableList = arrayListOf(1,2,3)
 
     @Pure
@@ -119,11 +119,29 @@ fun testReadonlyFunctionsOnImmutableConsideredPure(){
     }
 }
 
+fun testReadonlyFunctionsOnImmutableClassPropertyConsideredPure(){
+    class A{
+        @Immutable val immutableList = arrayListOf(1,2,3)
+
+        @Pure
+        fun readImmutable(index: Int): Int {
+            immutableList.filter { it > 2 } // allowed as 'extensionReceiver is @Immutable'
+            return immutableList[index] // allowed as 'dispatchReceiver is @Immutable'
+        }
+
+        @Pure @TestExpectCompileError
+        fun writeImmutable(){ // @Immutable only allows readonly functions to be considered pure, not write functions
+            immutableList.add(4) // This is not allowed, so this function is not pure
+        }
+    }
+}
+
 fun testLocalStatesAlterable() {
-    @Pure
+    @Readonly fun getArrayList() = ArrayList<String>()
+    @Readonly
     fun alterInnerStateClass() {
         @LocalState
-        val existingArrayList = ArrayList<String>()
+        val existingArrayList = getArrayList()
         existingArrayList.add("string") // Anything is allowed on a LocalState variable
     }
 }
@@ -185,10 +203,10 @@ fun testPassingReadonlyFunction() {
         function(4) // Can invoke input params marked as @Readonly
     }
 
+    // Can even invoke non-Readonly function - see documentation
     @Readonly
-    @TestExpectCompileError
     fun invokerError(function: (Int) -> Unit) {
-        function(4) // Cannot invoke non-Readonly function
+        function(4) 
     }
 
     // We sent a non-readonly function, so this should fail
