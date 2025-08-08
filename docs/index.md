@@ -19,7 +19,7 @@ plugins {
 }
 
 dependencies {
-  compileOnly("io.github.yairm210:purity-annotations:0.0.51")
+  implementation("io.github.yairm210:purity-annotations:0.0.51")
 }
 ```
 

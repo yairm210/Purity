@@ -1,4 +1,4 @@
-# <img src="docs/img/Purity.svg" width="24">  Purity
+#  <img src="docs/img/Purity.svg" width="24"> Purity
 
 ## What is this?
 
@@ -19,7 +19,7 @@ plugins {
 }
 
 dependencies {
-  compileOnly("io.github.yairm210:purity-annotations:0.0.51")
+  implementation("io.github.yairm210:purity-annotations:0.0.51")
 }
 ```
 
