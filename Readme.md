@@ -1,3 +1,5 @@
+#  <img src="docs/img/Purity.svg" width="24"> Purity
+
 ## What is this?
 
 A Kotlin Compiler Plugin for determining and enforcing Pure and Readonly functions.
