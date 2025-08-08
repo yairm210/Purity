@@ -34,7 +34,7 @@ dependencies {
 
 
 group = "io.github.yairm210"
-version = "0.0.50"
+version = "0.0.51"
 
 gradlePlugin {
     website = "https://github.com/yairm210/purity"

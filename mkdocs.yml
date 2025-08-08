@@ -3,6 +3,8 @@ theme:
   name: material
 #  logo: assets/Purity.svg
 #  favicon: assets/Purity.svg
+  features:
+    - navigation.expand # Open entire navigation tree by default
 
   palette:
     - scheme: default
