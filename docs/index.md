@@ -1,3 +1,5 @@
+# Introduction
+
 ## What is this?
 
 A Kotlin Compiler Plugin for determining and enforcing Pure and Readonly functions.
