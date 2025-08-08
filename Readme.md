@@ -43,7 +43,7 @@ fun readonlyFunction(list: List<String>): Int {
 
 ### Advanced usage
 
-Further details are available in the [documentation](https://yairm210.github.io/Purity/)
+Further details are available in the [documentation](https://yairm210.github.io/Purity/usage/advanced-usage/)
 
 ### Rules
 
