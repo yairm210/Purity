@@ -10,6 +10,7 @@ import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
 import org.jetbrains.kotlin.ir.types.classFqName
+import org.jetbrains.kotlin.ir.types.getClass
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 import org.jetbrains.kotlin.name.FqName
@@ -100,27 +101,31 @@ class CheckFunctionPurityVisitor(
         super.visitSetValue(expression, data)
     }
     
+    private fun isInternalStateClass(irClass: IrClass?): Boolean {
+        if (irClass == null) return false
+        if (irClass.hasAnnotation(Annotations.InternalState)) return true
+        val fullyQualifiedClassName = irClass.fqNameForIrSerialization.asString()
+        if (fullyQualifiedClassName in wellKnownInternalStateClasses) return true
+        if (fullyQualifiedClassName in purityConfig.wellKnownInternalStateClassesFromUser) return true
+        return false
+    }
+    
     private val localStateVariables = HashSet<IrVariable>()
     override fun visitVariable(declaration: IrVariable, data: Unit) {
         val initializer = declaration.initializer
         // If we're initializing a val with a constructor call to a well-known internal state class, it's the same as manually adding @LocalState
-        if (!declaration.isVar && initializer is IrConstructorCall) {
-            val fullyQualifiedClassName = initializer.type.classFqName?.asString() 
-            if (fullyQualifiedClassName in wellKnownInternalStateClasses
-                || fullyQualifiedClassName in purityConfig.wellKnownInternalStateClassesFromUser)
-                localStateVariables.add(declaration)
+        if (!declaration.isVar && initializer is IrConstructorCall
+                && isInternalStateClass(initializer.type.getClass())) {
+            localStateVariables.add(declaration)
         }
         
         // If we're calling a pure function, the instance is guaranteed to not be mutable by anyone else (or the function would not be pure)
         // If in addition to that, the type is a well-known internal state class, then it's state that we may modify only
         // Thus, it is safe to consider this as a LocalState variable
         if (!declaration.isVar && initializer is IrCall
-            && ExpectedFunctionPurityChecker.isMarkedAsPure(initializer.symbol.owner, purityConfig)) {
-            val typeName = initializer.type.classFqName?.asString()
-            if (typeName in wellKnownInternalStateClasses
-                || typeName in purityConfig.wellKnownInternalStateClassesFromUser) {
-                localStateVariables.add(declaration)
-            }
+                && ExpectedFunctionPurityChecker.isMarkedAsPure(initializer.symbol.owner, purityConfig)
+                && isInternalStateClass(initializer.type.getClass())) {
+            localStateVariables.add(declaration)
         }
     
         return super.visitVariable(declaration, data)

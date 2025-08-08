@@ -389,3 +389,26 @@ fun testForLocalStateAnnotation() {
         }
     }
 }
+
+fun testInternalClassesConsideredLocalState(){
+    class NotDeclaredInternal{
+        var x = 2
+        fun doSomething() { x = 4 }
+    }
+    @Readonly @TestExpectCompileError
+    fun notInternalUser(){
+        val notInternal = NotDeclaredInternal()
+        notInternal.doSomething()
+    }
+
+    @InternalState
+    class DeclaredInternal{
+        var x = 2
+        fun doSomething() { x = 4 }
+    }
+    @Readonly
+    fun internalUser(){
+        val notInternal = DeclaredInternal()
+        notInternal.doSomething()
+    }
+}
