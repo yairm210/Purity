@@ -202,21 +202,10 @@ class CheckFunctionPurityVisitor(
                 -> FunctionPurity.Pure
 
             // Function invocation
+            // INTENTIONALLY NOT checking for @Pure or @Readonly annotations - see documentation
             calledFunction.name.asString() == "invoke"
                     && receiver?.type?.isFunction() == true
-                -> {
-                    if (receiver is IrGetValue) {
-                        val owner = receiver.symbol.owner
-                        when {
-                            owner.hasAnnotation(Annotations.Pure) -> FunctionPurity.Pure
-                            owner.hasAnnotation(Annotations.Readonly) -> FunctionPurity.Readonly
-                            else -> FunctionPurity.None
-                        }
-                    } else {
-                        // If the receiver is not a variable, we can't determine its purity, so we assume it's not pure
-                        FunctionPurity.None
-                    }
-                }
+                -> FunctionPurity.Pure
 
             ExpectedFunctionPurityChecker.isReadonly(calledFunction, purityConfig) -> FunctionPurity.Readonly
 
@@ -256,14 +245,14 @@ class CheckFunctionPurityVisitor(
         val calledFunction = expression.symbol.owner
         
         for ((parameter, parameterExpression) in expression.getAllArgumentsWithIr()) {
+            if (parameterExpression == null) continue // No value passed for this parameter - use default value
+            
             val parameterPurity = when {
                 parameter.hasAnnotation(Annotations.Pure) -> FunctionPurity.Pure
                 parameter.hasAnnotation(Annotations.Readonly) -> FunctionPurity.Readonly
                 else -> FunctionPurity.None
             }
-
             if (parameterPurity == FunctionPurity.None) continue
-            if (parameterExpression == null) continue // No value passed for this parameter - use default value
             
             if (parameterExpression is IrFunctionExpression) { // lambda expression
                 raisePassedLambdaErrors(parameterPurity, parameterExpression)
