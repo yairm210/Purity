@@ -1,8 +1,8 @@
 site_name: Purity
 theme:
   name: material
-#  logo: assets/Purity.svg
-#  favicon: assets/Purity.svg
+  logo: img/Purity.svg
+  favicon: img/Purity.svg
   features:
     - navigation.expand # Open entire navigation tree by default
 
