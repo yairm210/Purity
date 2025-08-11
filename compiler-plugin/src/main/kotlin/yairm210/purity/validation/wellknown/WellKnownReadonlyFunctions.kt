@@ -42,6 +42,7 @@ val wellKnownReadonlyFunctions = setOf(
     "kotlin.collections.subtract",
     "kotlin.collections.union",
     "kotlin.collections.intersect",
+    "kotlin.collections.sortBy",
     "kotlin.collections.List.indexOf",
     "kotlin.Array.get",
 
@@ -104,7 +105,8 @@ val wellKnownReadonlyFunctions = setOf(
     "kotlin.reflect.KMutableProperty0.get",
     "kotlin.reflect.KMutableProperty1.get",
     "kotlin.reflect.KMutableProperty2.get",
-
+    
+    "kotlin.Throwable.getStackTrace",
     )  + getCommonSequenceIterableFunctions()
 
 

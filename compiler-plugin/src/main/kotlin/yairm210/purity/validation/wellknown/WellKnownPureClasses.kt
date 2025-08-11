@@ -26,4 +26,5 @@ val wellKnownPureClasses = setOf(
     "java.util.Locale",
     "java.util.UUID",
     "java.lang.Integer",
+    "java.lang.StackTraceElement",
 )

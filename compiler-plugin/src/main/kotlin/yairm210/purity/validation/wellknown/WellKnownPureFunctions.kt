@@ -33,6 +33,7 @@ val wellKnownPureFunctions = setOf(
     "kotlin.collections.arrayListOf",
     "kotlin.collections.hashSetOf",
     "kotlin.collections.hashMapOf",
+    "kotlin.collections.linkedMapOf",
     "kotlin.sequences.sequenceOf",
 
     "kotlin.collections.component1", // required for destructuring declarations
@@ -45,6 +46,11 @@ val wellKnownPureFunctions = setOf(
 
     "kotlin.io.println", // not TECHNICALLY pure, but PRACTICALLY pure - used for debug logs
     "kotlin.io.print",
+
+
+    "java.util.regex.Pattern.matcher",
+    "java.util.regex.Matcher.find",
+    "java.util.regex.Matcher.replaceAll",
 )
 
 val wellKnownPureFunctionsPrefixes = listOf(

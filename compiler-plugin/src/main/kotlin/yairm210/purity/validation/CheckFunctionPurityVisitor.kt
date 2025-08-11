@@ -199,7 +199,7 @@ class CheckFunctionPurityVisitor(
             fun isComplexSetForLocalState(): Boolean {
                 if (receiver !is IrGetValue) return false
                 val symbolOwner = receiver.symbol.owner
-                if (symbolOwner !is IrVariable) return false
+                if (symbolOwner !is IrVariable || symbolOwner.isVar) return false
                 val initializer = symbolOwner.initializer
                 if (initializer !is IrGetValue) return false
                 val initializerOwner = initializer.symbol.owner
