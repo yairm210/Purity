@@ -188,6 +188,28 @@ class CheckFunctionPurityVisitor(
             }
             return false
         }
+        
+        
+        
+        fun receiverIsLocalState(): Boolean {
+            if (receiverHasAnnotation(Annotations.LocalState)) return true
+            if (receiver is IrGetValue && receiver.symbol.owner in localStateVariables) return true
+            
+            // When you += or *= a variable, the value being set is actually a IR_TEMPORARY_VARIABLE that is just initialized to the original variable
+            fun isComplexSetForLocalState(): Boolean {
+                if (receiver !is IrGetValue) return false
+                val symbolOwner = receiver.symbol.owner
+                if (symbolOwner !is IrVariable) return false
+                val initializer = symbolOwner.initializer
+                if (initializer !is IrGetValue) return false
+                val initializerOwner = initializer.symbol.owner
+                if (initializerOwner in localStateVariables) return true
+                return false
+            }
+            if (isComplexSetForLocalState()) return true
+            
+            return false
+        }
 
         val calledFunctionPurity = when {
             // Pure function
@@ -199,8 +221,7 @@ class CheckFunctionPurityVisitor(
                 -> FunctionPurity.Pure
 
             // All functions on LocalState variables are considered pure
-            receiverHasAnnotation(Annotations.LocalState)
-                    || receiver is IrGetValue && receiver.symbol.owner in localStateVariables
+            receiverIsLocalState()
                     || receiverHasAnnotation(Annotations.Cache)
                     // Allow setting @Cache properties
                     || calledFunction.isSetter && calledFunction.correspondingPropertySymbol?.owner?.hasAnnotation(Annotations.Cache) == true
