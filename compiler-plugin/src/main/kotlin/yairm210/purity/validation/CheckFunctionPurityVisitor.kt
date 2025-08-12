@@ -203,7 +203,10 @@ class CheckFunctionPurityVisitor(
                 val initializer = symbolOwner.initializer
                 if (initializer !is IrGetValue) return false
                 val initializerOwner = initializer.symbol.owner
+                
                 if (initializerOwner in localStateVariables) return true
+                if (initializerOwner.hasAnnotation(Annotations.LocalState)) return true
+                
                 return false
             }
             if (isComplexSetForLocalState()) return true

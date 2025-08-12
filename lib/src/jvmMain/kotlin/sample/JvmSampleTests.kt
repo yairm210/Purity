@@ -415,11 +415,18 @@ actual object Platform {
 
 
 fun testPlusEqualsSet(){
-    @InternalState class Bob(var a:Int)
+    @InternalState class Internal(var a:Int)
     
     @Pure
-    fun testCanPlusSet(){
-        val bob = Bob(3)
+    fun testCanPlusSetInternal(){
+        val bob = Internal(3)
+        bob.a += 2
+    }
+    
+    class Local(var a:Int)
+    @Pure
+    fun testCanPlusSetLocal(){
+        @LocalState val bob = Local(3)
         bob.a += 2
     }
 }
