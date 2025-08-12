@@ -1,5 +1,8 @@
 #  <img src="docs/img/Purity.svg" width="24"> Purity
 
+![Gradle Plugin Portal Version](https://img.shields.io/gradle-plugin-portal/v/io.github.yairm210.purity-plugin)
+[![Build status](https://github.com/yairm210/Purity/actions/workflows/gradle.yml/badge.svg)](https://github.com/yairm210/Purity/actions/workflows/gradle.yml)
+
 ## What is this?
 
 A Kotlin Compiler Plugin for determining and enforcing Pure and Readonly functions.
