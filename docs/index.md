@@ -69,9 +69,7 @@ fun actsAsPure(): Int {
 }
 ```
 
-### Breaking usage
+### Limitations
 
-Purity is designed to be useful, and thus is makes some assumptions which if untrue may lead to misleading results:
-
-- It assumes constructors to be pure
-- It assumes getters to be readonly
+- Custom getters cannot be validated - all custom getters are treated as mutating
+- Purity assumes constructors to be pure

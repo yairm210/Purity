@@ -430,3 +430,17 @@ fun testPlusEqualsSet(){
         bob.a += 2
     }
 }
+
+fun testCustomValGetterNotReadonly(){
+    class A {
+        var i: Int = 0
+        val j: Int
+            get() = ++i
+    }
+    
+    @Readonly @TestExpectCompileError
+    fun testCanPlusCustomValGetter(){
+        val bob = A()
+        print(bob.j)
+    }
+}

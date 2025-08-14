@@ -10,4 +10,4 @@ import kotlin.annotation.AnnotationTarget.VALUE_PARAMETER
  * 
  * The equivalent of this for external functions is WellKnownPureFunctions - see https://yairm210.github.io/Purity/usage/configuration/#handling-external-classes
  */
-@Target(FUNCTION, VALUE_PARAMETER) public annotation class Readonly
+@Target(FUNCTION, VALUE_PARAMETER, AnnotationTarget.PROPERTY_GETTER) public annotation class Readonly
