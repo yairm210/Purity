@@ -55,7 +55,7 @@ mavenPublishing {
 }
 
 
-val autoService = "1.2.0"
+val autoService = "1.1.1"
 dependencies {
     compileOnly("com.google.auto.service:auto-service:$autoService")
     kapt("com.google.auto.service:auto-service:$autoService")
