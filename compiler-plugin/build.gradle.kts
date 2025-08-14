@@ -20,7 +20,7 @@ allprojects {
 }
 
 group = "io.github.yairm210"
-version = "1.1.1"
+version = "1.2.0"
 
 mavenPublishing {
     coordinates(group.toString(), "purity-compiler-plugin", version.toString())
@@ -55,7 +55,7 @@ mavenPublishing {
 }
 
 
-val autoService = "1.1.1"
+val autoService = "1.2.0"
 dependencies {
     compileOnly("com.google.auto.service:auto-service:$autoService")
     kapt("com.google.auto.service:auto-service:$autoService")
