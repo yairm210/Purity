@@ -15,11 +15,11 @@ configure<PurityConfiguration> {
 
 This is a cheap way to validate that the plugin is not the cause of compilation or latency problems.
 
-### Handling external classes
+### Handling external libraries
 
-To support idiomatic Kotlin, Purity recognizes pure and readonly functions of well-known classes.
+To support idiomatic Kotlin, Purity already recognizes pure and readonly functions of well-known classes in Kotlin and Java.
 
-You can expand this recognition in the following way:
+You can expand this to include external libraries in the following way:
 
 ```kotlin
 import yairm210.purity.PurityConfiguration // at the top of your build.gradle.kts
@@ -29,7 +29,7 @@ configure<PurityConfiguration> { // All of these are examples that are already c
   wellKnownPureFunctions = setOf("kotlin.collections.listOf")
   wellKnownReadonlyClasses = setOf("kotlin.sequences.Sequence")
   wellKnownReadonlyFunctions = setOf("java.util.EnumMap.get")
-  wellKnownInternalStateClasses = setOf("java.util.LinkedHashSet") // classes to be autorecognized as '@LocalState' when constructed
+  wellKnownInternalStateClasses = setOf("java.util.LinkedHashSet") // classes that mutate no state but their own
 }
 ```
 

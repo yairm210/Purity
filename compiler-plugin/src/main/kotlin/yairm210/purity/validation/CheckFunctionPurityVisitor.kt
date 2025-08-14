@@ -196,6 +196,7 @@ class CheckFunctionPurityVisitor(
             if (receiver is IrGetValue && receiver.symbol.owner in localStateVariables) return true
             
             // When you += or *= a variable, the value being set is actually a IR_TEMPORARY_VARIABLE that is just initialized to the original variable
+            // This is so that for chains (a.b.c += d) the final 'c' is given a local variable so it can be both read and written to
             fun isComplexSetForLocalState(): Boolean {
                 if (receiver !is IrGetValue) return false
                 val symbolOwner = receiver.symbol.owner
