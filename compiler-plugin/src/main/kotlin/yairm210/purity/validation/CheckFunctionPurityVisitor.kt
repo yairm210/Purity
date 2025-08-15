@@ -16,6 +16,7 @@ import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 import org.jetbrains.kotlin.name.FqName
 import yairm210.purity.PurityConfig
 import yairm210.purity.validation.wellknown.wellKnownInternalStateClasses
+import yairm210.purity.validation.wellknown.wellKnownNewInstanceFunctions
 import yairm210.purity.validation.wellknown.wellKnownPureClasses
 
 
@@ -123,8 +124,10 @@ class CheckFunctionPurityVisitor(
         // If in addition to that, the type is a well-known internal state class, then it's state that we may modify only
         // Thus, it is safe to consider this as a LocalState variable
         if (!declaration.isVar && initializer is IrCall
-                && ExpectedFunctionPurityChecker.isMarkedAsPure(initializer.symbol.owner, purityConfig)
-                && isInternalStateClass(initializer.type.getClass())) {
+                    && isInternalStateClass(initializer.type.getClass())
+                    && (initializer.symbol.owner.fqNameForIrSerialization.asString() in wellKnownNewInstanceFunctions
+                        || ExpectedFunctionPurityChecker.isMarkedAsPure(initializer.symbol.owner, purityConfig))
+        ) {
             localStateVariables.add(declaration)
         }
     

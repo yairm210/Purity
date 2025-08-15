@@ -135,7 +135,6 @@ fun getCommonSequenceIterableFunctions(): Set<String>{
         "filterIndexed",
         "filterNot",
         "filterNotNull",
-        "filterTo",
         "find",
         "findLast",
         "first",

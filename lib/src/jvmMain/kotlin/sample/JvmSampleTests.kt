@@ -430,6 +430,16 @@ fun testPlusEqualsSet(){
         bob.a += 2
     }
 }
+
+fun testWellKnownNewInstanceFunctionsDetermineLocalState(){
+    @Pure
+    fun testIterableCreatesNew(){
+        val list = listOf(1, 2, 3)
+        val mutableList = list.toMutableList()
+        mutableList.add(4)
+    }
+}
+
 //
 //fun testCustomValGetterNotReadonly(){
 //    class A {
