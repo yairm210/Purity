@@ -60,6 +60,11 @@ Further details are available in the [documentation](https://yairm210.github.io/
 
 Any violation of these rules creates a compilation error.
 
+### Limitations
+
+- All getters are assumed to not be state-changing
+- All constructors are assumed to be pure - to change state only of the instance being created
+
 ## Acknowledgments
 
 Projects that helped me understand how to setup the project:

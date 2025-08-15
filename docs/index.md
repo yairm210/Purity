@@ -71,5 +71,5 @@ fun actsAsPure(): Int {
 
 ### Limitations
 
-- Custom getters cannot be validated - all custom getters are treated as mutating
-- Purity assumes constructors to be pure
+- All getters are assumed to not be state-changing
+- All constructors are assumed to be pure - to change state only of the instance being created
