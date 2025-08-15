@@ -18,11 +18,11 @@ Install the plugin by adding the following to your `build.gradle.kts`:
 
 ```kotlin
 plugins {
-    id("io.github.yairm210.purity-plugin") version "1.2.1"
+    id("io.github.yairm210.purity-plugin") version "1.2.2"
 }
 
 dependencies {
-  implementation("io.github.yairm210:purity-annotations:1.2.1")
+  implementation("io.github.yairm210:purity-annotations:1.2.2")
 }
 ```
 
