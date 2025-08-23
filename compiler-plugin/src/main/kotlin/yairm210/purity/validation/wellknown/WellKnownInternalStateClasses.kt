@@ -21,4 +21,5 @@ val wellKnownInternalStateClasses = setOf(
     "java.util.LinkedHashSet",
     "java.util.BitSet",
     "java.util.concurrent.ConcurrentHashMap",
+    "java.util.TreeMap",
 )

@@ -18,6 +18,7 @@ val wellKnownPureFunctions = setOf(
     "kotlin.run",
     "kotlin.also",
     "kotlin.apply",
+    "kotlin.with",
     "kotlin.takeIf",
     "kotlin.takeUnless",
 
@@ -35,6 +36,7 @@ val wellKnownPureFunctions = setOf(
     "kotlin.collections.hashMapOf",
     "kotlin.collections.linkedMapOf",
     "kotlin.sequences.sequenceOf",
+    "kotlin.sequences.generateSequence",
 
     "kotlin.collections.component1", // required for destructuring declarations
     "kotlin.collections.component2",

@@ -23,8 +23,11 @@ val wellKnownPureClasses = setOf(
     "kotlin.enums.EnumEntries",
     
     "java.text.NumberFormat",
+    "java.text.DecimalFormat",
     "java.util.Locale",
     "java.util.UUID",
     "java.lang.Integer",
     "java.lang.StackTraceElement",
+    "java.lang.Math",
+    
 )

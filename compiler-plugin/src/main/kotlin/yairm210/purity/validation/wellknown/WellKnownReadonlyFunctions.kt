@@ -22,13 +22,16 @@ val wellKnownReadonlyFunctions = setOf(
     "kotlin.collections.Iterator.hasNext",
     "kotlin.collections.Iterator.next",
     "kotlin.collections.Iterable.iterator",
+    "kotlin.collections.Collection.isEmpty",
+    "kotlin.collections.Collection.contains",
+    "kotlin.collections.Collection.containsAll",
+    "kotlin.collections.List.indexOf",
+    
     "kotlin.collections.get",
     "kotlin.collections.getOrNull",
     "kotlin.collections.getOrElse",
     "kotlin.collections.containsKey",
     "kotlin.collections.containsValue",
-    "kotlin.collections.Collection.contains",
-    "kotlin.collections.Collection.containsAll",
     "kotlin.collections.dropLastWhile",
     "kotlin.collections.isNullOrEmpty",
     "kotlin.collections.filterKeys",
@@ -38,13 +41,15 @@ val wellKnownReadonlyFunctions = setOf(
     "kotlin.collections.intersect",
     "kotlin.collections.getValue",
     "kotlin.collections.randomOrNull",
-    "kotlin.collections.Collection.isEmpty",
     "kotlin.collections.subtract",
     "kotlin.collections.union",
     "kotlin.collections.intersect",
     "kotlin.collections.sortBy",
-    "kotlin.collections.List.indexOf",
+    "kotlin.collections.random",
+    "kotlin.collections.shuffled",
     "kotlin.Array.get",
+
+    "kotlin.hashCode",
 
 
     // Java Reflection
