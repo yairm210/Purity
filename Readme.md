@@ -65,6 +65,10 @@ Any violation of these rules creates a compilation error.
 - All getters are assumed to not be state-changing
 - All constructors are assumed to be pure - to change state only of the instance being created
 
+## Development
+
+Development instructions [here](https://yairm210.github.io/Purity/development/development/)
+
 ## Acknowledgments
 
 Projects that helped me understand how to setup the project:
