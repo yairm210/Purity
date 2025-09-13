@@ -8,6 +8,7 @@ includeBuild("compiler-plugin"){
 }
 include(":annotations")
 include(":lib")
+include(":example")
 
 // Allow plugins from local - required for lib to get the gradle plugin from our maven local
 pluginManagement {

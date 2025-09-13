@@ -1,6 +1,7 @@
 @file:OptIn(UnsafeDuringIrConstructionAPI::class)
 package yairm210.purity.validation
 
+import org.jetbrains.kotlin.DeprecatedForRemovalCompilerApi
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageLocation
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
@@ -12,7 +13,7 @@ import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
 import org.jetbrains.kotlin.ir.types.classFqName
 import org.jetbrains.kotlin.ir.types.getClass
 import org.jetbrains.kotlin.ir.util.*
-import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
+import org.jetbrains.kotlin.ir.visitors.IrVisitor
 import org.jetbrains.kotlin.name.FqName
 import yairm210.purity.PurityConfig
 import yairm210.purity.validation.wellknown.wellKnownInternalStateClasses
@@ -45,7 +46,7 @@ class CheckFunctionPurityVisitor(
     private val declaredFunctionPurity: FunctionPurity,
     private val messageCollector: MessageCollector,
     private val purityConfig: PurityConfig,
-    ) : IrElementVisitor<Unit, Unit> { // Returns whether this is an acceptable X function
+    ) : IrVisitor<Unit, Unit>() { // Returns whether this is an acceptable X function
         
     private var isReadonly = true
     private var isPure = true
@@ -161,6 +162,7 @@ class CheckFunctionPurityVisitor(
     }
 
     /** Only accept calls to functions marked as pure / readonly */
+    @OptIn(DeprecatedForRemovalCompilerApi::class)
     private fun checkCalledFunctionPurity(expression: IrCall) {
         
         val calledFunction = expression.symbol.owner
@@ -426,7 +428,7 @@ class CheckFunctionPurityVisitor(
     override fun visitFunction(declaration: IrFunction, data: Unit) {
         // Ensure that all annotated parameters have acceptable default values
         
-        val valueParameters = declaration.valueParameters
+        val valueParameters = declaration.parameters.filter { it.kind == IrParameterKind.Regular || it.kind == IrParameterKind.Context }
         for (parameter in valueParameters) {
             val defaultValue = parameter.defaultValue ?: continue
             

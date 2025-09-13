@@ -1,12 +1,11 @@
 package yairm210.purity.validation
 
+import org.jetbrains.kotlin.DeprecatedForRemovalCompilerApi
 import org.jetbrains.kotlin.backend.common.IrElementTransformerVoidWithContext
-import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity
 import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
 import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.backend.js.utils.parentEnumClassOrNull
-import org.jetbrains.kotlin.ir.backend.js.utils.valueArguments
 import org.jetbrains.kotlin.ir.declarations.IrProperty
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
 import org.jetbrains.kotlin.ir.expressions.IrConst
@@ -21,7 +20,6 @@ import yairm210.purity.boilerplate.DebugLogger
  * For each function, creates a CheckFunctionPurityVisitor to raise errors for that specific function.
  * */
 internal class PurityElementTransformer(
-    private val pluginContext: IrPluginContext,
     private val debugLogger: DebugLogger,
     private val purityConfig: PurityConfig,
 ) : IrElementTransformerVoidWithContext() {
@@ -49,6 +47,7 @@ internal class PurityElementTransformer(
 
     }
     
+    @OptIn(DeprecatedForRemovalCompilerApi::class)
     private fun isSuppressed(declaration: IrSimpleFunction): Boolean {
         val allInheritedAnnotations = declaration.annotations + getAllOverriddenFunctions(declaration).flatMap { it.annotations }
         val suppressFqName = FqName("kotlin.Suppress")
@@ -58,9 +57,11 @@ internal class PurityElementTransformer(
         // getAnnotationArgumentValue does not work for varargs, so we find the vararg
         //.flatmap{} instead of .valueArguments[0] because Suppress can be called with zero parameters also -_-
         @Suppress("UNCHECKED_CAST")
-        val suppressParameters: List<String> = suppressAnnotations.flatMap { it.valueArguments } // arguments of function and all overridden functions
+        val suppressParameters: List<String> = suppressAnnotations
+            .flatMap { annotation -> List(annotation.valueArgumentsCount) { annotation.getValueArgument(it) } } // arguments of function and all overridden functions
             .flatMap { (it as IrVarargImpl).elements }
-            .mapNotNull{it as? IrConst<String>}.map { it.value }
+            .mapNotNull{it as? IrConst}
+            .map { it.value.toString() }
 
         return suppressParameters.contains("purity")
     }
