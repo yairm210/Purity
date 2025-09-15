@@ -168,7 +168,8 @@ class CheckFunctionPurityVisitor(
         // This is a subfunction of the current function, so it's already checked
         if (function in calledFunction.parents) return
         
-        val extensionOrDispatchReceiverParameter = calledFunction.parameters.indexOfFirst { it.kind == IrParameterKind.DispatchReceiver || it.kind == IrParameterKind.ExtensionReceiver }
+        val extensionOrDispatchReceiverParameter = calledFunction.parameters
+            .indexOfFirst { it.kind == IrParameterKind.DispatchReceiver || it.kind == IrParameterKind.ExtensionReceiver }
         val receiver = if (extensionOrDispatchReceiverParameter != -1) 
             expression.arguments[extensionOrDispatchReceiverParameter]
         else null // e.g. a top-level function
@@ -310,6 +311,9 @@ class CheckFunctionPurityVisitor(
     private fun representsAnnotationBearer(irExpression: IrExpression, annotation: FqName): Boolean {
         if (irExpression is IrGetValue) { // local function variable
             return irExpression.symbol.owner.hasAnnotation(annotation)
+        }
+        if (irExpression is IrTypeOperatorCall){ // This seems to be type conversion? I'm not sure honestly, seems pretty random to me where it pops up 
+            return representsAnnotationBearer(irExpression.argument, annotation)
         }
         if (irExpression is IrCall) {
             return irExpression.symbol.owner.let {
