@@ -3,8 +3,8 @@ import com.vanniktech.maven.publish.SonatypeHost
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
-    kotlin("jvm") version("2.0.0")
-    kotlin("kapt") version("2.0.0")
+    kotlin("jvm") version("2.2.0")
+    kotlin("kapt") version("2.2.0")
     id("com.vanniktech.maven.publish") version("0.32.0")
     signing
 }
@@ -59,7 +59,7 @@ val autoService = "1.1.1"
 dependencies {
     compileOnly("com.google.auto.service:auto-service:$autoService")
     kapt("com.google.auto.service:auto-service:$autoService")
-    compileOnly("org.jetbrains.kotlin:kotlin-compiler-embeddable:2.0.0")
+    compileOnly("org.jetbrains.kotlin:kotlin-compiler-embeddable:2.2.0")
 }
 
 java {

@@ -162,7 +162,7 @@ object ExpectedFunctionPurityChecker {
         if (statement !is IrReturn) return false
 
         val value = statement.value
-        if (value is IrConst<*>) return true
+        if (value is IrConst) return true
         if (value is IrGetValue && !value.symbol.owner.let { it is IrVariable && it.isVar }) return true
         
         if (value is IrCall && value.symbol.owner.isGetter && // <something>.property 
