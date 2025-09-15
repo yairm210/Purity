@@ -1,7 +1,6 @@
 @file:OptIn(UnsafeDuringIrConstructionAPI::class)
 package yairm210.purity.validation
 
-import org.jetbrains.kotlin.DeprecatedForRemovalCompilerApi
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageLocation
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
@@ -162,15 +161,17 @@ class CheckFunctionPurityVisitor(
     }
 
     /** Only accept calls to functions marked as pure / readonly */
-    @OptIn(DeprecatedForRemovalCompilerApi::class)
     private fun checkCalledFunctionPurity(expression: IrCall) {
         
         val calledFunction = expression.symbol.owner
         
         // This is a subfunction of the current function, so it's already checked
         if (function in calledFunction.parents) return
-
-        val receiver = expression.dispatchReceiver ?: expression.extensionReceiver
+        
+        val extensionOrDispatchReceiverParameter = calledFunction.parameters.indexOfFirst { it.kind == IrParameterKind.DispatchReceiver || it.kind == IrParameterKind.ExtensionReceiver }
+        val receiver = if (extensionOrDispatchReceiverParameter != -1) 
+            expression.arguments[extensionOrDispatchReceiverParameter]
+        else null // e.g. a top-level function
         
         fun receiverHasAnnotation(annotation: FqName): Boolean =
             receiver?.let { representsAnnotationBearer(it, annotation) } == true
