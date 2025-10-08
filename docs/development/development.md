@@ -63,3 +63,5 @@ Thus, the version must be updated in multiple places:
 - Update version in compiler plugin - `compiler-plugin/build.gradle.kts`
 - Update version in gradle plugin - `PurityGradlePlugin.kt`
 - Update version in `gradle-plugin/build.gradle.kts`
+
+To publish, add a git tag `<version>` and push it to GitHub - the GitHub action will take care of the rest.
