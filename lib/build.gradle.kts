@@ -2,7 +2,7 @@ import yairm210.purity.PurityConfiguration
 
 plugins {
     id("org.jetbrains.kotlin.multiplatform") version libs.versions.kotlin
-    id("io.github.yairm210.purity-plugin") version "1.0.3" // This is overridden in settings so the version doesn't matter
+    id("io.github.yairm210.purity-plugin") version "1.3.1" // This is overridden in settings so the version doesn't matter
 }
 
 
