@@ -199,7 +199,6 @@ fun getCommonSequenceIterableFunctions(): Set<String>{
         "take",
         "takeWhile",
         "toArray",
-        "toCollection",
         "toHashSet",
         "toList",
         "toMap",

@@ -51,7 +51,6 @@ fun getCommonNewInstanceSequenceIterableFunctions(): Set<String> {
         "sortedWithComparator",
         
         "toArray",
-        "toCollection",
         "toHashSet",
         "toList",
         "toMap",
