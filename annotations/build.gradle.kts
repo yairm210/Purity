@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "io.github.yairm210"
-version = "1.3.2"
+version = "1.3.3"
 
 kotlin {
     sourceSets{
@@ -15,13 +15,15 @@ kotlin {
         }
     }
     jvm()
-    jvmToolchain(8) // test plugin compatibility to older jvm
+    jvmToolchain(25) // test plugin compatibility to older jvm
 }
 
 mavenPublishing {
     coordinates(group.toString(), "purity-annotations", version.toString())
     publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL)
-    signAllPublications() // Comment out for local publishing if you don't have a GPG key set up
+    if ((findProperty("skipSigning") as String?)?.toBooleanStrictOrNull() != true) {
+        signAllPublications()
+    }
 
     pom {
         name = "Purity Compiler Plugin"
