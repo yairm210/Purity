@@ -1,4 +1,5 @@
 import com.vanniktech.maven.publish.SonatypeHost
+import org.gradle.plugins.signing.Sign
 
 plugins {
     id("org.jetbrains.kotlin.multiplatform") version libs.versions.kotlin
@@ -8,6 +9,8 @@ plugins {
 
 group = "io.github.yairm210"
 version = "1.3.3"
+val isLocalPublish = gradle.startParameter.taskNames.any { it.contains("publishToMavenLocal") }
+val skipSigning = (findProperty("skipSigning") as String?)?.toBooleanStrictOrNull() == true
 
 kotlin {
     sourceSets{
@@ -21,9 +24,7 @@ kotlin {
 mavenPublishing {
     coordinates(group.toString(), "purity-annotations", version.toString())
     publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL)
-    if ((findProperty("skipSigning") as String?)?.toBooleanStrictOrNull() != true) {
-        signAllPublications()
-    }
+    signAllPublications()
 
     pom {
         name = "Purity Compiler Plugin"
@@ -50,4 +51,12 @@ mavenPublishing {
             developerConnection = "scm:git:ssh://git@github.com/yairm210/purity.git"
         }
     }
+}
+
+tasks.withType<Sign>().configureEach {
+    onlyIf { !isLocalPublish && !skipSigning }
+}
+
+tasks.matching { it.name.startsWith("sign") && it.name.endsWith("Publication") }.configureEach {
+    onlyIf { !isLocalPublish && !skipSigning }
 }
