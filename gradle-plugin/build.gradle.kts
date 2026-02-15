@@ -8,12 +8,18 @@ plugins {
 
 
 // Not sure if required - there's no Java :think:
-java.targetCompatibility = JavaVersion.VERSION_25
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(25))
+    }
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
 
 // Make KAPT stubs Java 8 compatible
 kotlin {
     compilerOptions {
-        jvmTarget.set(JvmTarget.JVM_25)
+        jvmTarget.set(JvmTarget.JVM_1_8)
     }
 }
 
