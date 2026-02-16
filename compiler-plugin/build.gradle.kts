@@ -1,10 +1,11 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
 import com.vanniktech.maven.publish.SonatypeHost
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.gradle.plugins.signing.Sign
 
 plugins {
-    kotlin("jvm") version("2.2.0")
-    kotlin("kapt") version("2.2.0")
+    kotlin("jvm") version("2.3.0")
+    kotlin("kapt") version("2.3.0")
     id("com.vanniktech.maven.publish") version("0.32.0")
     signing
 }
@@ -20,12 +21,14 @@ allprojects {
 }
 
 group = "io.github.yairm210"
-version = "1.3.2"
+version = "1.3.3"
+val isLocalPublish = gradle.startParameter.taskNames.any { it.contains("publishToMavenLocal") }
+val skipSigning = (findProperty("skipSigning") as String?)?.toBooleanStrictOrNull() == true
 
 mavenPublishing {
     coordinates(group.toString(), "purity-compiler-plugin", version.toString())
     publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL)
-    signAllPublications() // Comment out for local publishing if you don't have a GPG key set up
+    signAllPublications()
 
     pom {
         name = "Purity Compiler Plugin"
@@ -54,18 +57,28 @@ mavenPublishing {
     }
 }
 
+tasks.withType<Sign>().configureEach {
+    onlyIf { !isLocalPublish && !skipSigning }
+}
+
+tasks.matching { it.name.startsWith("sign") && it.name.endsWith("Publication") }.configureEach {
+    onlyIf { !isLocalPublish && !skipSigning }
+}
+
 
 val autoService = "1.1.1"
 dependencies {
     compileOnly("com.google.auto.service:auto-service:$autoService")
     kapt("com.google.auto.service:auto-service:$autoService")
-    compileOnly("org.jetbrains.kotlin:kotlin-compiler-embeddable:2.2.0")
+    compileOnly("org.jetbrains.kotlin:kotlin-compiler-embeddable:2.3.0")
 }
 
 java {
     toolchain {
-        languageVersion.set(JavaLanguageVersion.of(8))
+        languageVersion.set(JavaLanguageVersion.of(25))
     }
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
 }
 
 kotlin {

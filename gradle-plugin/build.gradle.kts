@@ -1,14 +1,20 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
-    kotlin("jvm") version("2.2.0")
-    kotlin("kapt") version("2.2.0")
+    kotlin("jvm") version("2.3.0")
+    kotlin("kapt") version("2.3.0")
     id("com.gradle.plugin-publish") version "2.0.0"
 }
 
 
 // Not sure if required - there's no Java :think:
-java.targetCompatibility = JavaVersion.VERSION_1_8
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(25))
+    }
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
 
 // Make KAPT stubs Java 8 compatible
 kotlin {
@@ -29,12 +35,12 @@ allprojects {
     }
 }
 dependencies {
-    implementation("org.jetbrains.kotlin:kotlin-gradle-plugin-api:2.2.20")
+    implementation("org.jetbrains.kotlin:kotlin-gradle-plugin-api:2.3.0")
 }
 
 
 group = "io.github.yairm210"
-version = "1.3.2"
+version = "1.3.3"
 
 gradlePlugin {
     website = "https://github.com/yairm210/purity"

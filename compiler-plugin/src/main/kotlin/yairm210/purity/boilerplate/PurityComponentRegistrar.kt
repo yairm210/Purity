@@ -11,6 +11,9 @@ import yairm210.purity.PurityConfig
 @AutoService(CompilerPluginRegistrar::class)
 class PurityComponentRegistrar : CompilerPluginRegistrar() {
 
+    override val pluginId: String
+        get() = "purityPlugin"
+
     override val supportsK2: Boolean
         get() = true
 
