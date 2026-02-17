@@ -12,7 +12,7 @@ import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
 import org.jetbrains.kotlin.ir.types.classFqName
 import org.jetbrains.kotlin.ir.types.getClass
 import org.jetbrains.kotlin.ir.util.*
-import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
+import org.jetbrains.kotlin.ir.visitors.IrVisitor
 import org.jetbrains.kotlin.name.FqName
 import yairm210.purity.PurityConfig
 import yairm210.purity.validation.wellknown.wellKnownInternalStateClasses
@@ -45,7 +45,7 @@ class CheckFunctionPurityVisitor(
     private val declaredFunctionPurity: FunctionPurity,
     private val messageCollector: MessageCollector,
     private val purityConfig: PurityConfig,
-    ) : IrElementVisitor<Unit, Unit> { // Returns whether this is an acceptable X function
+    ) : IrVisitor<Unit, Unit>() { // Returns whether this is an acceptable X function
         
     private var isReadonly = true
     private var isPure = true
@@ -167,8 +167,12 @@ class CheckFunctionPurityVisitor(
         
         // This is a subfunction of the current function, so it's already checked
         if (function in calledFunction.parents) return
-
-        val receiver = expression.dispatchReceiver ?: expression.extensionReceiver
+        
+        val extensionOrDispatchReceiverParameter = calledFunction.parameters
+            .indexOfFirst { it.kind == IrParameterKind.DispatchReceiver || it.kind == IrParameterKind.ExtensionReceiver }
+        val receiver = if (extensionOrDispatchReceiverParameter != -1) 
+            expression.arguments[extensionOrDispatchReceiverParameter]
+        else null // e.g. a top-level function
         
         fun receiverHasAnnotation(annotation: FqName): Boolean =
             receiver?.let { representsAnnotationBearer(it, annotation) } == true
@@ -308,6 +312,9 @@ class CheckFunctionPurityVisitor(
         if (irExpression is IrGetValue) { // local function variable
             return irExpression.symbol.owner.hasAnnotation(annotation)
         }
+        if (irExpression is IrTypeOperatorCall){ // This seems to be type conversion? I'm not sure honestly, seems pretty random to me where it pops up 
+            return representsAnnotationBearer(irExpression.argument, annotation)
+        }
         if (irExpression is IrCall) {
             return irExpression.symbol.owner.let {
                 it == it.correspondingPropertySymbol?.owner?.getter // A getter..
@@ -426,7 +433,7 @@ class CheckFunctionPurityVisitor(
     override fun visitFunction(declaration: IrFunction, data: Unit) {
         // Ensure that all annotated parameters have acceptable default values
         
-        val valueParameters = declaration.valueParameters
+        val valueParameters = declaration.parameters.filter { it.kind == IrParameterKind.Regular || it.kind == IrParameterKind.Context }
         for (parameter in valueParameters) {
             val defaultValue = parameter.defaultValue ?: continue
             

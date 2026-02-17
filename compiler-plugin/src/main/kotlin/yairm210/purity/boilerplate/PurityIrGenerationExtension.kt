@@ -11,6 +11,6 @@ internal class PurityIrGenerationExtension(private val debugLogger: DebugLogger,
 ) : IrGenerationExtension {
     override fun generate(moduleFragment: IrModuleFragment, pluginContext: IrPluginContext) {
         moduleFragment.transform(
-            PurityElementTransformer(pluginContext, debugLogger, purityConfig), null)
+            PurityElementTransformer(debugLogger, purityConfig), null)
     }
 }

@@ -16,8 +16,7 @@ To test on other projects, first increment the version (see below) - otherwise t
 
 To publish the *compiler plugin* locally:
 
-- Comment out the `signAllPublications()` line in `compiler-plugin/build.gradle.kts` if you don't have the signing keys set up
-- `./gradlew :compiler-plugin:publishToMavenLocal`
+- `./gradlew :compiler-plugin:publishToMavenLocal -PskipSigning=true`
 - It should now be available in `~/.m2/repository/io/github/yairm210/compiler-compiler-plugin/<version>`
 
 To publish the gradle plugin locally:
@@ -63,3 +62,5 @@ Thus, the version must be updated in multiple places:
 - Update version in compiler plugin - `compiler-plugin/build.gradle.kts`
 - Update version in gradle plugin - `PurityGradlePlugin.kt`
 - Update version in `gradle-plugin/build.gradle.kts`
+
+To publish, add a git tag `<version>` and push it to GitHub - the GitHub action will take care of the rest.

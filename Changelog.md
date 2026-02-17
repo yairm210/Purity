@@ -1,3 +1,7 @@
+## 1.3
+
+Support for Kotlin 2.2.x - Kudos @findusl
+
 ## 1.2
 
 If a function is known to return a new instance, the result is considered local state and can be mutated

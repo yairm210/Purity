@@ -4,6 +4,7 @@ package yairm210.purity.validation.wellknown
 val wellKnownPureFunctions = setOf(
     "kotlin.internal.ir.CHECK_NOT_NULL", // AKA !!
     "kotlin.internal.ir.noWhenBranchMatchedException",
+    "kotlin.internal.ir.EQEQEQ",
     "kotlin.to",
     "kotlin.assert",
     "kotlin.require",
@@ -13,6 +14,7 @@ val wellKnownPureFunctions = setOf(
     "kotlin.lazy",
     "kotlin.getValue",
     "kotlin.error",
+    "kotlin.repeat",
 
     "kotlin.let",
     "kotlin.run",
