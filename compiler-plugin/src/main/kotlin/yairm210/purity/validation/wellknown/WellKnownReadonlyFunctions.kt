@@ -46,8 +46,13 @@ val wellKnownReadonlyFunctions = setOf(
     "kotlin.collections.intersect",
     "kotlin.collections.sortBy",
     "kotlin.collections.random",
-    "kotlin.collections.shuffled",
     "kotlin.Array.get",
+    
+    "java.util.stream.StreamSupport.longStream",
+    "java.util.stream.LongStream.parallel",
+    "kotlin.LongArray.get",
+    "kotlin.LongArray.iterator",
+    "kotlin.collections.copyInto", // can't actually find this function tbh
 
     "kotlin.hashCode",
 
@@ -183,6 +188,7 @@ fun getCommonSequenceIterableFunctions(): Set<String>{
         "partition",
         "plus",
         "reduce",
+        "shuffled",
         "single",
         "singleOrNull",
         "sorted",
@@ -211,7 +217,8 @@ fun getCommonSequenceIterableFunctions(): Set<String>{
         "withIndex",
         "zip",
         "zipWithNext"
-    )
+    ).toSet()
+    
 
     val fullyQualifiedFunctionNames = mutableSetOf<String>()
     for (prefix in listOf("kotlin.sequences.", "kotlin.collections.")){
