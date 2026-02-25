@@ -23,7 +23,7 @@ kotlin {
             jvmTarget.set(JvmTarget.JVM_1_8)
         }
     }
-    jvmToolchain(25)
+    jvmToolchain((findProperty("jvmToolchainVersion") as String?)?.toInt() ?: 17)
 
 }
 

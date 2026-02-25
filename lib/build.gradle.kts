@@ -19,7 +19,7 @@ configure<PurityConfiguration> {
 
 kotlin {
     jvm()
-    jvmToolchain(25) // test plugin compatibility to older jvm
+    jvmToolchain((findProperty("jvmToolchainVersion") as String?)?.toInt() ?: 17)
 //    linuxX64("linux")
 //    js()
     sourceSets {
