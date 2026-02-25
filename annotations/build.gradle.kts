@@ -1,5 +1,6 @@
 import com.vanniktech.maven.publish.SonatypeHost
 import org.gradle.plugins.signing.Sign
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     id("org.jetbrains.kotlin.multiplatform") version libs.versions.kotlin
@@ -8,7 +9,7 @@ plugins {
 }
 
 group = "io.github.yairm210"
-version = "1.3.3"
+version = "1.3.4"
 val isLocalPublish = gradle.startParameter.taskNames.any { it.contains("publishToMavenLocal") }
 val skipSigning = (findProperty("skipSigning") as String?)?.toBooleanStrictOrNull() == true
 
@@ -17,8 +18,13 @@ kotlin {
         val commonMain by getting {
         }
     }
-    jvm()
-    jvmToolchain(25) // test plugin compatibility to older jvm
+    jvm {
+        compilerOptions {
+            jvmTarget.set(JvmTarget.JVM_1_8)
+        }
+    }
+    jvmToolchain(25)
+
 }
 
 mavenPublishing {

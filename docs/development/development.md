@@ -57,7 +57,9 @@ pluginManagement {
 Gradle plugins used in other projects must be included in settings.gradle.kts as 'includeBuild', so they'll be available as a plugin.
 
 This unfortunately precludes them from depending on buildSrc for a single source of truth for the version.
-Thus, the version must be updated in multiple places:
+Thus, the version must be updated in multiple places - just search-and-replace the version across everything since that will include documentation as well.
+
+The parts that will preclude publishing are: 
 
 - Update version in compiler plugin - `compiler-plugin/build.gradle.kts`
 - Update version in gradle plugin - `PurityGradlePlugin.kt`

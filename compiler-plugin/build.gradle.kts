@@ -21,7 +21,7 @@ allprojects {
 }
 
 group = "io.github.yairm210"
-version = "1.3.3"
+version = "1.3.4"
 val isLocalPublish = gradle.startParameter.taskNames.any { it.contains("publishToMavenLocal") }
 val skipSigning = (findProperty("skipSigning") as String?)?.toBooleanStrictOrNull() == true
 
