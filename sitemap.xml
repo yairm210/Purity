@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    <url>
+         <loc>https://yairm210.github.io/Purity/</loc>
+         <lastmod>2026-02-25</lastmod>
+    </url>
+    <url>
+         <loc>https://yairm210.github.io/Purity/development/development/</loc>
+         <lastmod>2026-02-25</lastmod>
+    </url>
+    <url>
+         <loc>https://yairm210.github.io/Purity/development/kotlin-ir-documentation/</loc>
+         <lastmod>2026-02-25</lastmod>
+    </url>
+    <url>
+         <loc>https://yairm210.github.io/Purity/development/principles/</loc>
+         <lastmod>2026-02-25</lastmod>
+    </url>
+    <url>
+         <loc>https://yairm210.github.io/Purity/usage/advanced-usage/</loc>
+         <lastmod>2026-02-25</lastmod>
+    </url>
+    <url>
+         <loc>https://yairm210.github.io/Purity/usage/configuration/</loc>
+         <lastmod>2026-02-25</lastmod>
+    </url>
+</urlset>
