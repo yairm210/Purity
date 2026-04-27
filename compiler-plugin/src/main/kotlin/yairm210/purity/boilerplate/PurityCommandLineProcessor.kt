@@ -57,7 +57,7 @@ class PurityCommandLineProcessor : CommandLineProcessor {
         ),
     )
     
-    private fun stringToSet(string:String) = string.split("_").map { it.trim() }.toSet()
+    private fun stringToSet(string:String) = string.split("_").map { it.trim() }.filter { it.isNotEmpty() }.toSet()
 
     private fun getConfig(configuration: CompilerConfiguration): PurityConfig {
         val currentValue = configuration.get(KEY_PURITY_CONFIG)
