@@ -1,3 +1,11 @@
+## 1.4
+
+[Support for KMP targets](https://github.com/yairm210/Purity/pull/52]) - by @Sintrastes
+
+[Fixed problems with files with no package declaration](https://github.com/yairm210/Purity/pull/49) - by @Sintrastes
+
+[Better error messages for passed lambda functions]() 
+
 ## 1.3
 
 Support for Kotlin 2.2.x - Kudos @findusl
