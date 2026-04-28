@@ -112,6 +112,7 @@ class CheckFunctionPurityVisitor(
     }
     
     private val localStateVariables = HashSet<IrVariable>()
+    private val checkedLambdaFunctions = HashSet<IrFunction>()
     override fun visitVariable(declaration: IrVariable, data: Unit) {
         val initializer = declaration.initializer
         // If we're initializing a val with a constructor call to a well-known internal state class, it's the same as manually adding @LocalState
@@ -373,13 +374,17 @@ class CheckFunctionPurityVisitor(
         parameterPurity: FunctionPurity,
         parameterExpression: IrFunctionExpression
     ) {
-        // If this functions is already on the parameter purity level or higher, we already check it satisfies the required purity - no-op
-        // Otherwise, we instantiate a new checkFunctionPurityVisitor to check the lambda.
+        // If the outer function is MORE restrictive than the parameter, the outer traversal already
+        // enforces purity at a higher level than required - no-op.
+        // If the outer function is AT THE SAME LEVEL as the parameter, we must still check the lambda
+        // explicitly, otherwise the outer traversal produces only a generic "calls non-pure function"
+        // error instead of the specific "non-pure value passed to @Pure parameter" error.
+        if (declaredFunctionPurity > parameterPurity) return
 
-        // There is still a case where we will check things doubly:
-        // If the parent function is readonly, and the parameter is pure, we'll create a Pure visitor
-        // That means that readonly violations in the lambda will be raised by both the parent and the child
-        if (declaredFunctionPurity >= parameterPurity) return
+        // Mark the lambda as checked so the outer function's general traversal does not re-visit it
+        // and produce duplicate (and less specific) error messages.
+        checkedLambdaFunctions.add(parameterExpression.function)
+
         val visitor = CheckFunctionPurityVisitor(
             function = parameterExpression.function,
             declaredFunctionPurity = parameterPurity,
@@ -431,8 +436,12 @@ class CheckFunctionPurityVisitor(
     }
 
     override fun visitFunction(declaration: IrFunction, data: Unit) {
+        // Skip lambdas that were already fully checked by raisePassedLambdaErrors; the general
+        // traversal would only produce duplicate, less-specific error messages for them.
+        if (declaration in checkedLambdaFunctions) return
+
         // Ensure that all annotated parameters have acceptable default values
-        
+
         val valueParameters = declaration.parameters.filter { it.kind == IrParameterKind.Regular || it.kind == IrParameterKind.Context }
         for (parameter in valueParameters) {
             val defaultValue = parameter.defaultValue ?: continue
