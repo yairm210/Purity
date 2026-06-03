@@ -17,6 +17,8 @@ val wellKnownReadonlyFunctions = setOf(
     "java.util.AbstractCollection.iterator",
     "java.util.AbstractList.get",
     "java.util.BitSet.get",
+    "java.util.BitSet.isEmpty",
+    "java.util.BitSet.nextSetBit",
 
     // kotlin collections
     "kotlin.collections.Iterator.hasNext",
@@ -25,6 +27,7 @@ val wellKnownReadonlyFunctions = setOf(
     "kotlin.collections.Collection.isEmpty",
     "kotlin.collections.Collection.contains",
     "kotlin.collections.Collection.containsAll",
+    "kotlin.collections.List.get",
     "kotlin.collections.List.indexOf",
     
     "kotlin.collections.get",
@@ -40,6 +43,7 @@ val wellKnownReadonlyFunctions = setOf(
     "kotlin.collections.reversed",
     "kotlin.collections.intersect",
     "kotlin.collections.getValue",
+    "kotlin.collections.firstNotNullOfOrNull",
     "kotlin.collections.randomOrNull",
     "kotlin.collections.subtract",
     "kotlin.collections.union",
@@ -52,9 +56,9 @@ val wellKnownReadonlyFunctions = setOf(
     "java.util.stream.LongStream.parallel",
     "kotlin.LongArray.get",
     "kotlin.LongArray.iterator",
-    "kotlin.collections.copyInto", // can't actually find this function tbh
 
     "kotlin.hashCode",
+    "kotlin.synchronized",
 
 
     // Java Reflection
