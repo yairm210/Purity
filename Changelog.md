@@ -1,3 +1,7 @@
+## 1.5
+
+Better support for overriding pure functions from parent classes/interfaces
+
 ## 1.4
 
 [Support for KMP targets](https://github.com/yairm210/Purity/pull/52]) - by @Sintrastes
