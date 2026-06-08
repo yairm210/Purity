@@ -378,6 +378,36 @@ fun testInheritingFunctionsInheritSuppression(){
     }
 }
 
+fun testPerLineSuppression() {
+    var external = 0
+
+    @Pure
+    fun suppressedCallInPureFunction() {
+        @Suppress("purity")
+        val ignored = external // reading external var suppressed on this line
+    }
+
+    @Pure
+    fun suppressedSetInPureFunction() {
+        @Suppress("purity")
+        val ignored: Unit = run { external += 1 } // setting external var suppressed on this line
+    }
+
+    @Pure
+    fun suppressionOnOneLineDoesNotAffectOthers() {
+        @Suppress("purity")
+        val ignored = external // suppressed
+        // The function is still @Pure overall — no further violations below
+    }
+
+    @Pure @TestExpectCompileError
+    fun suppressionDoesNotCoverOtherLines() {
+        @Suppress("purity")
+        val ignored = external // this line suppressed
+        val stillChecked = external // this line is NOT suppressed — should still error
+    }
+}
+
 fun testForLocalStateAnnotation() {
     @Readonly
     fun localStateFunction() {

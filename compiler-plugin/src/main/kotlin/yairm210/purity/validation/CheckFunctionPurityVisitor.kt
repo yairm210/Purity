@@ -1,6 +1,7 @@
 @file:OptIn(UnsafeDuringIrConstructionAPI::class)
 package yairm210.purity.validation
 
+import org.jetbrains.kotlin.DeprecatedForRemovalCompilerApi
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageLocation
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
@@ -8,6 +9,7 @@ import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.IrFileEntry
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.*
+import org.jetbrains.kotlin.ir.expressions.impl.IrVarargImpl
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
 import org.jetbrains.kotlin.ir.types.classFqName
 import org.jetbrains.kotlin.ir.types.getClass
@@ -36,6 +38,20 @@ fun getLocationForExpression(
     )!!
 }
 
+
+@OptIn(DeprecatedForRemovalCompilerApi::class)
+internal fun IrAnnotationContainer.suppressesPurity(): Boolean {
+    val suppressFqName = FqName("kotlin.Suppress")
+    val suppressAnnotations = annotations.filter { it.isAnnotation(suppressFqName) }
+    if (suppressAnnotations.isEmpty()) return false
+    @Suppress("UNCHECKED_CAST")
+    val suppressParameters: List<String> = suppressAnnotations
+        .flatMap { annotation -> List(annotation.valueArgumentsCount) { annotation.getValueArgument(it) } }
+        .flatMap { (it as IrVarargImpl).elements }
+        .mapNotNull { it as? IrConst }
+        .map { it.value.toString() }
+    return suppressParameters.contains("purity")
+}
 
 /** Checks all declarations of a specific function.
  * Warns every time a var is set a value, or an unpure function is called.
@@ -132,6 +148,9 @@ class CheckFunctionPurityVisitor(
             localStateVariables.add(declaration)
         }
     
+        // If this specific statement is suppressed, skip purity checking of the initializer
+        if (declaration.suppressesPurity()) return
+
         return super.visitVariable(declaration, data)
     }
 

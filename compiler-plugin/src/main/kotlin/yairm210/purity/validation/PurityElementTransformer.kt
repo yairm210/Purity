@@ -1,6 +1,5 @@
 package yairm210.purity.validation
 
-import org.jetbrains.kotlin.DeprecatedForRemovalCompilerApi
 import org.jetbrains.kotlin.backend.common.IrElementTransformerVoidWithContext
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity
 import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
@@ -8,10 +7,7 @@ import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.backend.js.utils.parentEnumClassOrNull
 import org.jetbrains.kotlin.ir.declarations.IrProperty
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
-import org.jetbrains.kotlin.ir.expressions.IrConst
-import org.jetbrains.kotlin.ir.expressions.impl.IrVarargImpl
 import org.jetbrains.kotlin.ir.util.*
-import org.jetbrains.kotlin.name.FqName
 import yairm210.purity.PurityConfig
 import yairm210.purity.boilerplate.DebugLogger
 
@@ -47,23 +43,10 @@ internal class PurityElementTransformer(
 
     }
     
-    @OptIn(DeprecatedForRemovalCompilerApi::class)
     private fun isSuppressed(declaration: IrSimpleFunction): Boolean {
-        val allInheritedAnnotations = declaration.annotations + getAllOverriddenFunctions(declaration).flatMap { it.annotations }
-        val suppressFqName = FqName("kotlin.Suppress")
-        val suppressAnnotations = allInheritedAnnotations.filter { it.isAnnotation(suppressFqName) }
-        if (suppressAnnotations.isEmpty()) return false
-        
-        // getAnnotationArgumentValue does not work for varargs, so we find the vararg
-        //.flatmap{} instead of .valueArguments[0] because Suppress can be called with zero parameters also -_-
-        @Suppress("UNCHECKED_CAST")
-        val suppressParameters: List<String> = suppressAnnotations
-            .flatMap { annotation -> List(annotation.valueArgumentsCount) { annotation.getValueArgument(it) } } // arguments of function and all overridden functions
-            .flatMap { (it as IrVarargImpl).elements }
-            .mapNotNull{it as? IrConst}
-            .map { it.value.toString() }
-
-        return suppressParameters.contains("purity")
+        // Also check overridden functions so a child override inherits suppression from the parent
+        return declaration.suppressesPurity()
+                || getAllOverriddenFunctions(declaration).any { it.suppressesPurity() }
     }
 
     override fun visitPropertyNew(declaration: IrProperty): IrStatement {

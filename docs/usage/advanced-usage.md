@@ -129,6 +129,47 @@ fun compilationErrorInvokeWithNonReadonly() {
 }
 ```
 
+### Suppressing a single line
+
+`@Suppress("purity")` on a function suppresses all purity checks for that entire function.
+When you only need to bypass a single statement, you can place `@Suppress("purity")` on a local variable declaration instead — only the initializer of that variable is skipped, leaving the rest of the function fully checked.
+
+```kotlin
+var external = 0
+
+@Pure
+fun myFunction(): Int {
+    @Suppress("purity")
+    val ignored = external      // this read is suppressed
+
+    return 42                   // rest of the function is still checked normally
+}
+```
+
+For void or side-effecting calls, wrap the call in a `run` block and assign the result:
+
+```kotlin
+@Pure
+fun myFunction() {
+    @Suppress("purity")
+    val ignored: Unit = run { external += 1 }  // side-effect suppressed on this line
+}
+```
+
+The suppression covers the entire initializer expression, including any nested calls within it:
+
+```kotlin
+@Pure
+fun myFunction() {
+    @Suppress("purity")
+    val result = buildString {         // all impure calls inside this block are suppressed
+        append(external.toString())
+    }
+}
+```
+
+> **Note:** Suppression only works on `val`/`var` declarations because those are the only statement-level constructs that carry annotations in Kotlin's IR. Annotating a standalone expression call (e.g. `@Suppress("purity") impureCall()`) has no effect.
+
 ### Calling subfunctions
 
 Subfunctions - functions created within the function scope - may be called even without being explicitly marked - since their contents are checked as part of the larger function.

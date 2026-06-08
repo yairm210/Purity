@@ -4,7 +4,7 @@
 
 A Kotlin Compiler Plugin for determining and enforcing Pure and Readonly functions.
 
-Tested with Kotlin versions 1.5.0 - 2.3.0
+Tested with Kotlin versions 1.4.0 - 2.3.0
 
 ### Why?
 
@@ -17,11 +17,11 @@ Install the plugin by adding the following to your `build.gradle.kts`:
 
 ```kotlin
 plugins {
-    id("io.github.yairm210.purity-plugin") version "1.5.0"
+    id("io.github.yairm210.purity-plugin") version "1.6.0"
 }
 
 dependencies {
-  implementation("io.github.yairm210:purity-annotations:1.5.0")
+  implementation("io.github.yairm210:purity-annotations:1.6.0")
 }
 ```
 
@@ -70,6 +70,31 @@ fun actsAsPure(): Int {
     return external
 }
 ```
+
+You can also suppress purity checks for a single line by placing `@Suppress("purity")` on a local variable declaration:
+
+```kotlin
+var external = 3
+
+@Pure
+fun actsAsPure(): Int {
+    @Suppress("purity")
+    val ignored = external // only this line is suppressed
+    return 42
+}
+```
+
+For void calls or side-effects, assign the result to a `Unit` variable:
+
+```kotlin
+@Pure
+fun actsAsPure() {
+    @Suppress("purity")
+    val ignored: Unit = run { external += 1 }
+}
+```
+
+See [advanced usage](usage/advanced-usage.md#suppressing-a-single-line) for more details.
 
 ### Limitations
 
