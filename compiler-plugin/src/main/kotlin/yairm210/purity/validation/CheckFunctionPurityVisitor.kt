@@ -189,7 +189,9 @@ class CheckFunctionPurityVisitor(
         if (function in calledFunction.parents) return
         
         val extensionOrDispatchReceiverParameter = calledFunction.parameters
+            // Dispatch means "A.B() is defined in class A", Extention means it's an extention function defined elsewhere
             .indexOfFirst { it.kind == IrParameterKind.DispatchReceiver || it.kind == IrParameterKind.ExtensionReceiver }
+        /** The instance the function is called on: For example for A.B(), the receiver is A */
         val receiver = if (extensionOrDispatchReceiverParameter != -1) 
             expression.arguments[extensionOrDispatchReceiverParameter]
         else null // e.g. a top-level function
@@ -218,28 +220,9 @@ class CheckFunctionPurityVisitor(
         
         
         
-        fun receiverIsLocalState(): Boolean {
-            if (receiverHasAnnotation(Annotations.LocalState)) return true
-            if (receiver is IrGetValue && receiver.symbol.owner in localStateVariables) return true
-            
-            // When you += or *= a variable, the value being set is actually a IR_TEMPORARY_VARIABLE that is just initialized to the original variable
-            // This is so that for chains (a.b.c += d) the final 'c' is given a local variable so it can be both read and written to
-            fun isComplexSetForLocalState(): Boolean {
-                if (receiver !is IrGetValue) return false
-                val symbolOwner = receiver.symbol.owner
-                if (symbolOwner !is IrVariable || symbolOwner.isVar) return false
-                val initializer = symbolOwner.initializer
-                if (initializer !is IrGetValue) return false
-                val initializerOwner = initializer.symbol.owner
-                
-                if (initializerOwner in localStateVariables) return true
-                if (initializerOwner.hasAnnotation(Annotations.LocalState)) return true
-                
-                return false
-            }
-            if (isComplexSetForLocalState()) return true
-            
-            return false
+        fun receiverIsMutatable(): Boolean {
+            if (receiver == null) return false
+            return isMutatable(receiver)
         }
 
         val calledFunctionPurity = when {
@@ -251,9 +234,7 @@ class CheckFunctionPurityVisitor(
             isImmutableReceiver() && ExpectedFunctionPurityChecker.isReadonly(calledFunction, purityConfig)
                 -> FunctionPurity.Pure
 
-            // All functions on LocalState variables are considered pure
-            receiverIsLocalState()
-                    || receiverHasAnnotation(Annotations.Cache)
+            receiverIsMutatable()
                     // Allow setting @Cache properties
                     || calledFunction.isSetter && calledFunction.correspondingPropertySymbol?.owner?.hasAnnotation(Annotations.Cache) == true
                 -> FunctionPurity.Pure
@@ -346,13 +327,54 @@ class CheckFunctionPurityVisitor(
     }
 
 
+    /** Whether the current function has mutation rights over [expression]:
+     *  value types, auto-detected LocalState, @LocalState/@Mutated annotations, and += IR temporaries. */
+    private fun isMutatable(expression: IrExpression): Boolean {
+        val fqName = expression.type.classFqName?.asString()
+        // Pure classes - all functions are callable, there is no "mutation"
+        if (fqName != null && (fqName in wellKnownPureClasses || fqName in purityConfig.wellKnownPureClassesFromUser)) return true
+        
+        // Instances that we have mutation rights on
+        if (expression is IrGetValue && expression.symbol.owner in localStateVariables) return true
+        if (representsAnnotationBearer(expression, Annotations.LocalState)) return true
+        if (representsAnnotationBearer(expression, Annotations.Mutated)) return true
+        if (representsAnnotationBearer(expression, Annotations.Cache)) return true
+        
+        // += / *= patterns: temp val initialized from a LocalState variable
+        if (expression is IrGetValue) {
+            val symbolOwner = expression.symbol.owner
+            if (symbolOwner is IrVariable && !symbolOwner.isVar) {
+                val initializer = symbolOwner.initializer
+                if (initializer is IrGetValue) {
+                    val initializerOwner = initializer.symbol.owner
+                    if (initializerOwner in localStateVariables) return true
+                    if (initializerOwner.hasAnnotation(Annotations.LocalState)) return true
+                }
+            }
+        }
+        return false
+    }
+
     private fun checkMarkedParameters(expression: IrCall) {
 
         val calledFunction = expression.symbol.owner
-        
+
         for ((parameter, parameterExpression) in expression.getAllArgumentsWithIr()) {
             if (parameterExpression == null) continue // No value passed for this parameter - use default value
-            
+
+            // Check @Mutated parameters: when calling from @Pure or @Readonly, the argument must be safe to mutate
+            if (parameter.hasAnnotation(Annotations.Mutated)
+                && (declaredFunctionPurity == FunctionPurity.Pure || declaredFunctionPurity == FunctionPurity.Readonly)
+                && !isMutatable(parameterExpression)) { // We can't pass a parameter to mutate, if we don't have mutation rights!
+                report(
+                    "Function \"${function.name}\" is marked as $declaredFunctionPurity but passes a non-local value " +
+                            "to @Mutated parameter \"${parameter.name}\" of \"${calledFunction.fqNameForIrSerialization}\".\n" +
+                            " - If the value is created within this function, annotate it as @LocalState.\n" +
+                            " - If this parameter is itself meant to be mutated, annotate it as @Mutated.\n",
+                    expression
+                )
+            }
+
             val parameterPurity = when {
                 parameter.hasAnnotation(Annotations.Pure) -> FunctionPurity.Pure
                 parameter.hasAnnotation(Annotations.Readonly) -> FunctionPurity.Readonly

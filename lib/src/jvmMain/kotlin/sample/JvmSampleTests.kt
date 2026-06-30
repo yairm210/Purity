@@ -484,3 +484,84 @@ fun testWellKnownNewInstanceFunctionsDetermineLocalState(){
 //        print(bob.j)
 //    }
 //}
+
+// --- @Mutated parameter tests ---
+
+fun testMutatedBasic() {
+    // @Pure/@Readonly functions may call non-Readonly functions on @Mutated parameters
+    @Pure
+    fun sortList(@Mutated list: MutableList<Int>) {
+        list.sort()
+        list.add(0)
+    }
+
+    // Other purity constraints still apply: @Pure cannot read external mutable state
+    @Readonly
+    fun readAndMutate(@Mutated list: MutableList<Int>): Int {
+        val size = list.size  // Readonly — OK
+        list.add(size)        // non-Readonly on @Mutated param — OK
+        return list.sum()     // Pure — OK
+    }
+}
+
+fun testMutatedPurityStillEnforced() {
+    var externalVar = 0
+
+    // @Pure + @Mutated: the @Pure constraint still applies; external state cannot be read
+    @Pure @TestExpectCompileError
+    fun pureCannotReadExternal(@Mutated list: MutableList<Int>) {
+        list.add(externalVar)  // ERROR: @Pure cannot read external mutable var
+    }
+
+    // @Readonly + @Mutated: @Readonly may read external state — this is the key difference
+    @Readonly
+    fun readonlyCanReadExternal(@Mutated list: MutableList<Int>) {
+        list.add(externalVar)  // OK: @Readonly is allowed to read external state
+    }
+}
+
+fun testMutatedCallerSafety() {
+    val externalList = mutableListOf("x")
+    @Pure fun populate(@Mutated list: MutableList<String>, value: String) { list.add(value) }
+
+    // Safe: LocalState arg
+    @Pure
+    fun pureWithSafeArg() {
+        val localList = ArrayList<String>()
+        populate(localList, "a")  // localList=LocalState, "a"=value type — OK
+    }
+
+    @Readonly
+    fun readonlyWithSafeArg() {
+        val localList = ArrayList<String>()
+        populate(localList, "a")  // OK
+    }
+
+    // Unsafe: externalList is not LocalState or a value type
+    @Pure @TestExpectCompileError
+    fun pureWithUnsafeArg() {
+        populate(externalList, "a")  // NOT OK: externalList would be mutated
+    }
+
+    @Readonly @TestExpectCompileError
+    fun readonlyWithUnsafeArg() {
+        populate(externalList, "a")  // NOT OK
+    }
+}
+
+fun testMutatedChaining() {
+    val externalList = mutableListOf("a")
+    @Pure fun helper(@Mutated list: MutableList<String>) { list.add("x") }
+
+    // Propagating a @Mutated param to another @Mutated param is OK since we have mutation rights
+    @Pure
+    fun validChain(@Mutated list: MutableList<String>) {
+        helper(list)  // list is itself @Mutated — safe to pass on
+    }
+
+    // Passing external state to a @Mutated param is NOT OK
+    @Pure @TestExpectCompileError
+    fun invalidChain(@Mutated input: MutableList<String>) {
+        helper(externalList)  // externalList is not @Mutated, LocalState, or a value type
+    }
+}

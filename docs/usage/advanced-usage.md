@@ -58,6 +58,20 @@ fun alterExternallyDeclaredInnerStateClass() {
 }
 ```
 
+### Mutating input parameters
+
+Use `@Mutated` on a parameter to allow non-Readonly calls on it while keeping the function's `@Pure` or `@Readonly` annotation:
+
+```kotlin
+@Pure
+fun sortAndTrim(@Mutated list: MutableList<Int>, maxSize: Int) {
+    list.sort()
+    if (list.size > maxSize) list.subList(maxSize, list.size).clear()
+}
+```
+
+Callers may only pass parameters they are themselves permitted to mutate — i.e. local state values (as specified above) or their own `@Mutated` input parameters.
+
 ### Caching
 
 Often, you want to cache the result of a function in a class property - this is technically a state-altering operation, but the function as called could still be pure.
