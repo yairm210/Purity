@@ -39,16 +39,15 @@ fun getLocationForExpression(
 }
 
 
-@OptIn(DeprecatedForRemovalCompilerApi::class)
 internal fun IrAnnotationContainer.suppressesPurity(): Boolean {
     val suppressFqName = FqName("kotlin.Suppress")
     val suppressAnnotations = annotations.filter { it.isAnnotation(suppressFqName) }
     if (suppressAnnotations.isEmpty()) return false
     @Suppress("UNCHECKED_CAST")
     val suppressParameters: List<String> = suppressAnnotations
-        .flatMap { annotation -> List(annotation.valueArgumentsCount) { annotation.getValueArgument(it) } }
+        .flatMap { annotation -> annotation.arguments }
         .flatMap { (it as IrVarargImpl).elements }
-        .mapNotNull { it as? IrConst }
+        .filterIsInstance<IrConst>()
         .map { it.value.toString() }
     return suppressParameters.contains("purity")
 }
