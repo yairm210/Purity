@@ -4,8 +4,8 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.gradle.plugins.signing.Sign
 
 plugins {
-    kotlin("jvm") version("2.3.0")
-    kotlin("kapt") version("2.3.0")
+    kotlin("jvm") version("2.4.0")
+    kotlin("kapt") version("2.4.0")
     id("com.vanniktech.maven.publish") version("0.32.0")
     signing
 }
@@ -21,7 +21,7 @@ allprojects {
 }
 
 group = "io.github.yairm210"
-version = "1.7.0"
+version = "1.7.1"
 val isLocalPublish = gradle.startParameter.taskNames.any { it.contains("publishToMavenLocal") }
 val skipSigning = (findProperty("skipSigning") as String?)?.toBooleanStrictOrNull() == true
 
@@ -70,7 +70,7 @@ val autoService = "1.1.1"
 dependencies {
     compileOnly("com.google.auto.service:auto-service:$autoService")
     kapt("com.google.auto.service:auto-service:$autoService")
-    compileOnly("org.jetbrains.kotlin:kotlin-compiler-embeddable:2.3.0")
+    compileOnly("org.jetbrains.kotlin:kotlin-compiler-embeddable:2.4.0")
 }
 
 java {

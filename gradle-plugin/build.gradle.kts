@@ -1,8 +1,8 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
-    kotlin("jvm") version("2.3.0")
-    kotlin("kapt") version("2.3.0")
+    kotlin("jvm") version("2.4.0")
+    kotlin("kapt") version("2.4.0")
     id("com.gradle.plugin-publish") version "2.0.0"
 }
 
@@ -35,12 +35,12 @@ allprojects {
     }
 }
 dependencies {
-    implementation("org.jetbrains.kotlin:kotlin-gradle-plugin-api:2.3.0")
+    implementation("org.jetbrains.kotlin:kotlin-gradle-plugin-api:2.4.0")
 }
 
 
 group = "io.github.yairm210"
-version = "1.7.0"
+version = "1.7.1"
 
 gradlePlugin {
     website = "https://github.com/yairm210/purity"
