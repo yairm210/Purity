@@ -30,6 +30,7 @@ configure<PurityConfiguration> { // All of these are examples that are already c
   wellKnownReadonlyClasses = setOf("kotlin.sequences.Sequence")
   wellKnownReadonlyFunctions = setOf("java.util.EnumMap.get")
   wellKnownInternalStateClasses = setOf("java.util.LinkedHashSet") // classes that mutate no state but their own
+  wellKnownNewInstanceFunctions = setOf("kotlin.collections.toMutableList") // functions that always return a newly allocated instance
 }
 ```
 

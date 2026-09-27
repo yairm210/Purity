@@ -22,6 +22,8 @@ open class PurityConfiguration {
     /** Fully-qualified names of classes which alter state, but only internally (e.g. List, HashMap, Set).
      * Newly constructed instances of this class are recognized automatically as @LocalState in functions */
     var wellKnownInternalStateClasses = setOf<String>()
+    /** Fully-qualified names of functions that always return a newly allocated instance */
+    var wellKnownNewInstanceFunctions = setOf<String>()
 }
 
 @Suppress("unused")
@@ -30,7 +32,7 @@ class PurityGradlePlugin : KotlinCompilerPluginSupportPlugin {
     companion object {
         const val COMPILER_PLUGIN_GROUP_NAME = "io.github.yairm210"
         const val ARTIFACT_NAME = "purity-compiler-plugin"
-        const val VERSION_NUMBER = "1.7.1"
+        const val VERSION_NUMBER = "1.8.0"
     }
 
     private var gradleExtension : PurityConfiguration = PurityConfiguration()
@@ -47,6 +49,7 @@ class PurityGradlePlugin : KotlinCompilerPluginSupportPlugin {
                 SubpluginOption("wellKnownReadonlyClasses", gradleExtension.wellKnownReadonlyClasses.joinToString("_")),
                 SubpluginOption("wellKnownReadonlyFunctions", gradleExtension.wellKnownReadonlyFunctions.joinToString("_")),
                 SubpluginOption("wellKnownInternalStateClasses", gradleExtension.wellKnownInternalStateClasses.joinToString("_")),
+                SubpluginOption("wellKnownNewInstanceFunctions", gradleExtension.wellKnownNewInstanceFunctions.joinToString("_")),
             )
             options
         }

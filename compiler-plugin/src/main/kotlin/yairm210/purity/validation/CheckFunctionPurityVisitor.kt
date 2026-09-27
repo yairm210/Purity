@@ -18,7 +18,6 @@ import org.jetbrains.kotlin.ir.visitors.IrVisitor
 import org.jetbrains.kotlin.name.FqName
 import yairm210.purity.PurityConfig
 import yairm210.purity.validation.wellknown.wellKnownInternalStateClasses
-import yairm210.purity.validation.wellknown.wellKnownNewInstanceFunctions
 import yairm210.purity.validation.wellknown.wellKnownPureClasses
 
 
@@ -127,6 +126,7 @@ class CheckFunctionPurityVisitor(
     }
     
     private val localStateVariables = HashSet<IrVariable>()
+    private val newInstanceVariables = HashSet<IrVariable>()
     private val checkedLambdaFunctions = HashSet<IrFunction>()
     override fun visitVariable(declaration: IrVariable, data: Unit) {
         val initializer = declaration.initializer
@@ -135,22 +135,52 @@ class CheckFunctionPurityVisitor(
                 && isInternalStateClass(initializer.type.getClass())) {
             localStateVariables.add(declaration)
         }
-        
+
         // If we're calling a pure function, the instance is guaranteed to not be mutable by anyone else (or the function would not be pure)
         // If in addition to that, the type is a well-known internal state class, then it's state that we may modify only
         // Thus, it is safe to consider this as a LocalState variable
         if (!declaration.isVar && initializer is IrCall
                     && isInternalStateClass(initializer.type.getClass())
-                    && (initializer.symbol.owner.fqNameForIrSerialization.asString() in wellKnownNewInstanceFunctions
-                        || ExpectedFunctionPurityChecker.isMarkedAsPure(initializer.symbol.owner, purityConfig))
+                    && ExpectedFunctionPurityChecker.returnsNewInstance(initializer.symbol.owner, purityConfig)
         ) {
             localStateVariables.add(declaration)
         }
-    
+
+        // Track vals assigned directly from a constructor call or a call to a @ReturnsNewInstance function,
+        // so that a @ReturnsNewInstance function may assign locally and return the val, not just return the call directly
+        if (!declaration.isVar) {
+            if (initializer is IrConstructorCall) newInstanceVariables.add(declaration)
+            if (initializer is IrCall && ExpectedFunctionPurityChecker.returnsNewInstance(initializer.symbol.owner, purityConfig)) {
+                newInstanceVariables.add(declaration)
+            }
+        }
+
         // If this specific statement is suppressed, skip purity checking of the initializer
         if (declaration.suppressesPurity()) return
 
         return super.visitVariable(declaration, data)
+    }
+
+    // A @ReturnsNewInstance function must only return: a constructor call, a call to another @ReturnsNewInstance
+    // function, or a local val that was itself assigned from one of those (tracked via newInstanceVariables)
+    override fun visitReturn(expression: IrReturn, data: Unit) {
+        if (function.hasAnnotation(Annotations.ReturnsNewInstance) && expression.returnTargetSymbol == function.symbol) {
+            val value = expression.value
+            val isNewInstance = when (value) {
+                is IrConstructorCall -> true
+                is IrCall -> ExpectedFunctionPurityChecker.returnsNewInstance(value.symbol.owner, purityConfig)
+                is IrGetValue -> value.symbol.owner.let { it is IrVariable && it in newInstanceVariables }
+                else -> false
+            }
+            if (!isNewInstance) {
+                report(
+                    "Function \"${function.name}\" is marked as @ReturnsNewInstance but returns a value that is not a constructor call, " +
+                        "a call to another @ReturnsNewInstance function, or a local val assigned from one of those.\n",
+                    expression
+                )
+            }
+        }
+        super.visitReturn(expression, data)
     }
 
     override fun visitGetValue(expression: IrGetValue, data: Unit) {

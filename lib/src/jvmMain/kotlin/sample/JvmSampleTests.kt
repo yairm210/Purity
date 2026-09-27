@@ -470,6 +470,38 @@ fun testWellKnownNewInstanceFunctionsDetermineLocalState(){
     }
 }
 
+fun testReturnsNewInstanceAnnotationDeterminesLocalState(){
+    @Readonly @ReturnsNewInstance
+    fun makeNewList(): ArrayList<Int> = ArrayList()
+
+    @Readonly
+    fun testCustomFunctionCreatesNew(){
+        val list = makeNewList()
+        list.add(4)
+    }
+}
+
+fun testReturnsNewInstanceValidation(){
+    // Directly returning a constructor call is fine
+    @ReturnsNewInstance
+    fun makeListDirect(): ArrayList<Int> = ArrayList()
+
+    // Returning a val assigned from a constructor call is fine
+    @ReturnsNewInstance
+    fun makeListViaVal(): ArrayList<Int> {
+        val list = ArrayList<Int>()
+        return list
+    }
+
+    // Returning a call to another @ReturnsNewInstance function is fine
+    @ReturnsNewInstance
+    fun makeListDelegated(): ArrayList<Int> = makeListDirect()
+
+    // Returning an input parameter is NOT a new instance
+    @ReturnsNewInstance @TestExpectCompileError
+    fun returnsParameterNotNewInstance(list: ArrayList<Int>): ArrayList<Int> = list
+}
+
 //
 //fun testCustomValGetterNotReadonly(){
 //    class A {

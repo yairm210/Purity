@@ -125,6 +125,30 @@ object ExpectedFunctionPurityChecker {
         return false
     }
 
+    /** Tests shallowly whether the function always returns a newly allocated instance,
+     * not aliased/shared with its inputs or with external state. */
+    fun returnsNewInstance(function: IrFunction, purityConfig: PurityConfig): Boolean {
+        if (function.hasAnnotation(Annotations.ReturnsNewInstance)) return true // Marked by @ReturnsNewInstance
+
+        val fullyQualifiedFunctionName = function.fqNameForIrSerialization.asString()
+        if (fullyQualifiedFunctionName in wellKnownNewInstanceFunctions) return true
+        if (fullyQualifiedFunctionName in purityConfig.wellKnownNewInstanceFunctionsFromUser) return true
+
+        if (function is IrSimpleFunction) {
+            for (overriddenFunction in getAllOverriddenFunctions(function).toSet()) {
+                val overriddenFunctionName = overriddenFunction.fqNameForIrSerialization.asString()
+                if (overriddenFunctionName in wellKnownNewInstanceFunctions) return true
+                if (overriddenFunctionName in purityConfig.wellKnownNewInstanceFunctionsFromUser) return true
+                if (overriddenFunction.hasAnnotation(Annotations.ReturnsNewInstance)) return true
+            }
+        }
+
+        // A pure function must by definition return a new instance, or it wouldn't be able to return consistent results
+        if (isMarkedAsPure(function, purityConfig)) return true
+
+        return false
+    }
+
     /** For convenience - single-declaration functions like "fun getX() = x" are readonly */
     private fun isSingleStatementReturnReadonly(function: IrFunction): Boolean {
         val body = function.body ?: return false

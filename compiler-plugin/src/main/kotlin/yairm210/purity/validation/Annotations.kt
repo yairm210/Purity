@@ -10,6 +10,7 @@ object Annotations {
     val Cache = FqName("yairm210.purity.annotations.Cache")
     val Immutable = FqName("yairm210.purity.annotations.Immutable")
     val Mutated = FqName("yairm210.purity.annotations.Mutated")
+    val ReturnsNewInstance = FqName("yairm210.purity.annotations.ReturnsNewInstance")
     val TestExpectCompileError = FqName("yairm210.purity.annotations.TestExpectCompileError")
 
 }

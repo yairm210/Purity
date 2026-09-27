@@ -7,4 +7,5 @@ class PurityConfig {
     var wellKnownReadonlyClassesFromUser: Set<String> = setOf()
     var wellKnownReadonlyFunctionsFromUser: Set<String> = setOf()
     var wellKnownInternalStateClassesFromUser: Set<String> = setOf()
+    var wellKnownNewInstanceFunctionsFromUser: Set<String> = setOf()
 }
