@@ -53,3 +53,7 @@ However, code outside the purview of compilation is not available for validation
 Therefore:
 - Functions marked directly with attributes - code available for validation - is validated
 - Functions marked by fully qualified name in the plugin settings - code unavailable - **taken at face value**, trusting the user.
+
+Note that since we validate also **function overrides** as following the rules of the overridden function,
+there are cases where in our code we subclass a class with e.g. a readonly function marked by fully qualified name,
+And it will be validated by our plugin.

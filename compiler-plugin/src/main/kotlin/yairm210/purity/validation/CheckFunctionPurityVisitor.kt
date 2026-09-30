@@ -18,6 +18,7 @@ import org.jetbrains.kotlin.ir.visitors.IrVisitor
 import org.jetbrains.kotlin.name.FqName
 import yairm210.purity.PurityConfig
 import yairm210.purity.validation.wellknown.wellKnownInternalStateClasses
+import yairm210.purity.validation.wellknown.wellKnownNewInstanceFunctions
 import yairm210.purity.validation.wellknown.wellKnownPureClasses
 
 
@@ -162,13 +163,23 @@ class CheckFunctionPurityVisitor(
         return super.visitVariable(declaration, data)
     }
 
-    // True if the function is itself marked @ReturnsNewInstance, or overrides a function that is -
+    // True if the function is itself marked/known @ReturnsNewInstance, or overrides a function that is -
     // in which case it inherits the same obligation, same as override-inheritance for @Pure/@Readonly.
+    // Mirrors ExpectedFunctionPurityChecker.returnsNewInstance()'s override-matching, so that a function
+    // trusted by callers via the FQN config (built-in or user) also has its own body validated.
     private fun isExpectedToReturnNewInstance(function: IrFunction): Boolean {
         if (function.hasAnnotation(Annotations.ReturnsNewInstance)) return true
+
+        val fullyQualifiedFunctionName = function.fqNameForIrSerialization.asString()
+        if (fullyQualifiedFunctionName in wellKnownNewInstanceFunctions) return true
+        if (fullyQualifiedFunctionName in purityConfig.wellKnownNewInstanceFunctionsFromUser) return true
+
         if (function is IrSimpleFunction) {
             for (overriddenFunction in getAllOverriddenFunctions(function)) {
                 if (overriddenFunction.hasAnnotation(Annotations.ReturnsNewInstance)) return true
+                val overriddenFunctionName = overriddenFunction.fqNameForIrSerialization.asString()
+                if (overriddenFunctionName in wellKnownNewInstanceFunctions) return true
+                if (overriddenFunctionName in purityConfig.wellKnownNewInstanceFunctionsFromUser) return true
             }
         }
         return false
