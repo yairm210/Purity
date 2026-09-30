@@ -58,6 +58,31 @@ fun alterExternallyDeclaredInnerStateClass() {
 }
 ```
 
+### Marking functions as returning a new instance
+
+`@LocalState` marks a *variable* as safe to mutate. `@ReturnsNewInstance` marks a *function* itself as always returning a newly allocated instance - not aliased/shared with its inputs or any external state - so that callers don't need to re-annotate every call site with `@LocalState`.
+
+This means that if the function's return type is `InternalState`, the resulting value is automatically recognized as `@LocalState`, just like a direct constructor call:
+
+```kotlin
+@ReturnsNewInstance
+fun buildList(): ArrayList<String> {
+    val result = ArrayList<String>()
+    result.add("string")
+    return result
+}
+
+@Pure
+fun caller() {
+    val list = buildList() // Automatically recognized as LocalState - no manual annotation needed
+    list.add("another string")
+}
+```
+
+A `@ReturnsNewInstance` function's return statements are checked: each one must return either a constructor call, a call to another `@ReturnsNewInstance` function, or a local `val` assigned from one of those - otherwise it's a compilation error, since returning e.g. an input parameter or external state would break the contract.
+
+The equivalent of this for external functions is `wellKnownNewInstanceFunctions` in the config - see [Handling external libraries](configuration.md#handling-external-libraries).
+
 ### Mutating input parameters
 
 Use `@Mutated` on a parameter to allow non-Readonly calls on it while keeping the function's `@Pure` or `@Readonly` annotation:
@@ -71,6 +96,16 @@ fun sortAndTrim(@Mutated list: MutableList<Int>, maxSize: Int) {
 ```
 
 Callers may only pass parameters they are themselves permitted to mutate — i.e. local state values (as specified above) or their own `@Mutated` input parameters.
+
+For extension functions, mark the receiver (`this`) as mutated with the `@receiver:` use-site target:
+
+```kotlin
+@Pure
+fun @receiver:Mutated MutableList<Int>.sortAndTrim(maxSize: Int) {
+    sort()
+    if (size > maxSize) subList(maxSize, size).clear()
+}
+```
 
 ### Caching
 

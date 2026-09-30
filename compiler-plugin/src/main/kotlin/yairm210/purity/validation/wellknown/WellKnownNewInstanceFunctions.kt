@@ -1,13 +1,28 @@
 package yairm210.purity.validation.wellknown
 
 /** Functions that return a new instance
- * This means that if the type is InternalState, 
+ * This means that if the type is InternalState,
  *  the vals created are guaranteed to be LocalState, just like for constructors
- *  This is unnecessary for immutable classes, or for functions known to be pure -
- *    They must by definition return a new instance, or they wouldn't be able to return consistent results
+ *  This is unnecessary for immutable classes, since they can't be mutated regardless.
+ *
+ *  Note: being Pure does NOT imply returning a new instance - a Pure function may return a
+ *  shared/cached reference (e.g. a val getter), so purity alone must never be used to infer freshness.
  * */
 
 val wellKnownNewInstanceFunctions = setOf(
+    // Collection builder functions - always allocate a fresh instance.
+    // Note: emptyList/emptySet/emptyMap are intentionally excluded - they return a shared singleton.
+    "kotlin.collections.mutableListOf",
+    "kotlin.collections.mutableSetOf",
+    "kotlin.collections.mutableMapOf",
+    "kotlin.collections.listOf",
+    "kotlin.collections.setOf",
+    "kotlin.collections.mapOf",
+    "kotlin.collections.arrayListOf",
+    "kotlin.collections.hashSetOf",
+    "kotlin.collections.hashMapOf",
+    "kotlin.collections.linkedMapOf",
+
     "kotlin.collections.distinct",
     "kotlin.collections.distinctBy",
     "kotlin.collections.distinctBy",

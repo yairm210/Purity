@@ -184,6 +184,10 @@ interface AreaCalculator {
     @Pure fun area(): Int
 }
 
+interface ListFactory {
+    @ReturnsNewInstance fun makeList(): ArrayList<Int>
+}
+
 fun testMarkingInterfaceMarksImplementations() {
     // If an interface is marked as @Pure, all implementations are considered pure
     class Square(val width: Int) : AreaCalculator {
@@ -361,9 +365,9 @@ fun testLocalStateRecognizedAutomaticallyForKnownClasses(){
 
 
     @Pure
-    fun alterInnerStateClassFromPureFunction() {
+    fun alterStateOfNewInstance() {
         val existingArrayList = hashSetOf("hi")
-        existingArrayList.add("string") // Anything is allowed on a LocalState variable
+        existingArrayList.add("string") // Anything is allowed on a LocalState variable - here detected since hashSetOf returns a new instance
     }
 }
 
@@ -500,6 +504,18 @@ fun testReturnsNewInstanceValidation(){
     // Returning an input parameter is NOT a new instance
     @ReturnsNewInstance @TestExpectCompileError
     fun returnsParameterNotNewInstance(list: ArrayList<Int>): ArrayList<Int> = list
+}
+
+fun testReturnsNewInstanceInheritedFromOverride() {
+    // Overriding a @ReturnsNewInstance function inherits the same obligation, even without re-annotating
+    class ValidFactory : ListFactory {
+        override fun makeList(): ArrayList<Int> = ArrayList()
+    }
+
+    class InvalidFactory(val shared: ArrayList<Int>) : ListFactory {
+        @TestExpectCompileError
+        override fun makeList(): ArrayList<Int> = shared // not a new instance - should fail
+    }
 }
 
 //

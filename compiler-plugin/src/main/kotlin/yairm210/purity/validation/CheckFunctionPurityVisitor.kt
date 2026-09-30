@@ -136,7 +136,8 @@ class CheckFunctionPurityVisitor(
             localStateVariables.add(declaration)
         }
 
-        // If we're calling a pure function, the instance is guaranteed to not be mutable by anyone else (or the function would not be pure)
+        // If we're calling a function known to return a freshly allocated instance (marked @ReturnsNewInstance,
+        // or well-known e.g. toMutableList()), the instance is guaranteed to not be aliased by anyone else.
         // If in addition to that, the type is a well-known internal state class, then it's state that we may modify only
         // Thus, it is safe to consider this as a LocalState variable
         if (!declaration.isVar && initializer is IrCall
@@ -161,10 +162,22 @@ class CheckFunctionPurityVisitor(
         return super.visitVariable(declaration, data)
     }
 
+    // True if the function is itself marked @ReturnsNewInstance, or overrides a function that is -
+    // in which case it inherits the same obligation, same as override-inheritance for @Pure/@Readonly.
+    private fun isExpectedToReturnNewInstance(function: IrFunction): Boolean {
+        if (function.hasAnnotation(Annotations.ReturnsNewInstance)) return true
+        if (function is IrSimpleFunction) {
+            for (overriddenFunction in getAllOverriddenFunctions(function)) {
+                if (overriddenFunction.hasAnnotation(Annotations.ReturnsNewInstance)) return true
+            }
+        }
+        return false
+    }
+
     // A @ReturnsNewInstance function must only return: a constructor call, a call to another @ReturnsNewInstance
     // function, or a local val that was itself assigned from one of those (tracked via newInstanceVariables)
     override fun visitReturn(expression: IrReturn, data: Unit) {
-        if (function.hasAnnotation(Annotations.ReturnsNewInstance) && expression.returnTargetSymbol == function.symbol) {
+        if (isExpectedToReturnNewInstance(function) && expression.returnTargetSymbol == function.symbol) {
             val value = expression.value
             val isNewInstance = when (value) {
                 is IrConstructorCall -> true
@@ -174,8 +187,9 @@ class CheckFunctionPurityVisitor(
             }
             if (!isNewInstance) {
                 report(
-                    "Function \"${function.name}\" is marked as @ReturnsNewInstance but returns a value that is not a constructor call, " +
-                        "a call to another @ReturnsNewInstance function, or a local val assigned from one of those.\n",
+                    "Function \"${function.name}\" is marked as (or overrides a function marked as) @ReturnsNewInstance " +
+                        "but returns a value that is not a constructor call, a call to another @ReturnsNewInstance function, " +
+                        "or a local val assigned from one of those.\n",
                     expression
                 )
             }
@@ -242,7 +256,7 @@ class CheckFunctionPurityVisitor(
             // Vararg arrays are created by the function, so they can't be modified from outside
             if (receiver is IrGetValue){
                 val symbolOwner = receiver.symbol.owner
-                if (symbolOwner is IrValueParameter && symbolOwner.isVararg) return true 
+                if (symbolOwner is IrValueParameter && symbolOwner.isVararg) return true
             }
             return false
         }
@@ -362,7 +376,7 @@ class CheckFunctionPurityVisitor(
         val fqName = expression.type.classFqName?.asString()
         // Pure classes - all functions are callable, there is no "mutation"
         if (fqName != null && (fqName in wellKnownPureClasses || fqName in purityConfig.wellKnownPureClassesFromUser)) return true
-        
+
         // Instances that we have mutation rights on
         if (expression is IrGetValue && expression.symbol.owner in localStateVariables) return true
         if (representsAnnotationBearer(expression, Annotations.LocalState)) return true

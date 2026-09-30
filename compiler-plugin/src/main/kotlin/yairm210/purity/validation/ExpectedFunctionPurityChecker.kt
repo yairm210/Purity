@@ -143,9 +143,6 @@ object ExpectedFunctionPurityChecker {
             }
         }
 
-        // A pure function must by definition return a new instance, or it wouldn't be able to return consistent results
-        if (isMarkedAsPure(function, purityConfig)) return true
-
         return false
     }
 
