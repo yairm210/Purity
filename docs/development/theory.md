@@ -57,3 +57,18 @@ Therefore:
 Note that since we validate also **function overrides** as following the rules of the overridden function,
 there are cases where in our code we subclass a class with e.g. a readonly function marked by fully qualified name,
 And it will be validated by our plugin.
+
+## Functions vs Classes, and Subclasses
+
+Purity is at its core a *function annotation and validation* plugin, but for ease of use we also allow marking entire *classes*.
+
+This is a signal that all functions of this class should be treated as having this annotation.
+
+Subclasses can override parent class functions, and can add functions of their own. 
+So for new functions, it seems clear that we should not treat the parent class's annotation as binding;
+To activate the new function the caller needs to know it's the new class.
+
+But for existing functions, here we have a hole in our validation: Ideally we should check they follow the rules, but currently we don't. 
+
+For functions marked *explicitly* with an annotation, we do validate that subclass implementations follow the rules set out by the parent class,
+to avoid overloads bypassing the validation mechanism.
