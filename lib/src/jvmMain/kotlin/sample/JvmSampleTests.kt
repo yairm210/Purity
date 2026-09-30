@@ -448,6 +448,66 @@ fun testInternalClassesConsideredLocalState(){
 }
 
 
+fun testInternalStateMethodsCanOnlyMutateOwnState() {
+    var externalVar = 0
+    fun externalMutatingFunction() { externalVar += 1 }
+
+    @InternalState
+    class Good {
+        var x = 0
+        fun assignX(value: Int) { x = value } // mutating own field - fine
+
+        @Readonly
+        fun readX() = x
+
+        fun setXFromReadonlyCall() { x = readX() + 1 } // calling own Readonly method - fine
+
+        fun setXViaLocal() {
+            var local = 5
+            local += 1 // mutating a local - fine
+            x = local
+        }
+    }
+
+    @InternalState
+    class BadCall {
+        var x = 0
+        @TestExpectCompileError
+        fun setXFromExternalCall() {
+            externalMutatingFunction() // calling a non-Pure/Readonly/InternalState function - NOT allowed
+            x = 1
+        }
+    }
+
+    @InternalState
+    class BadSet {
+        var x = 0
+        @TestExpectCompileError
+        fun setExternalVar() {
+            externalVar = 1 // setting a var that isn't local or own field - NOT allowed
+        }
+    }
+
+    @InternalState
+    class BadCrossInstanceSet {
+        var x = 0
+        @TestExpectCompileError
+        fun setXFromOther(other: BadCrossInstanceSet) {
+            other.x = 5 // mutating a DIFFERENT instance's state, even of the same class - NOT allowed
+        }
+    }
+
+    @InternalState
+    class BadCrossInstanceCall {
+        var x = 0
+        fun assignX(value: Int) { x = value }
+        @TestExpectCompileError
+        fun setXFromOther(other: BadCrossInstanceCall) {
+            other.assignX(5) // calling a non-Pure/Readonly method on a DIFFERENT instance - NOT allowed
+        }
+    }
+}
+
 fun testPlusEqualsSet(){
     @InternalState class Internal(var a:Int)
     

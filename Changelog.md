@@ -1,3 +1,7 @@
+## 1.9
+
+Validate "Internal State" annotations - classes declaring they only mutate local state should never set vars of other instances or call external non-readonly functions.
+
 ## 1.8
 
 Added @ReturnsNewInstance marking for functions, allowing us to recognize their return values as "internal state" in functions that call them

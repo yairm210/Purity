@@ -55,6 +55,16 @@ internal fun unwrapSafeCall(expression: IrExpression): IrExpression {
     }
 }
 
+/** Is [irClass] marked as InternalState - directly, or via well-known FQN (built-in or user config). */
+internal fun isInternalStateClass(irClass: IrClass?, purityConfig: PurityConfig): Boolean {
+    if (irClass == null) return false
+    if (irClass.hasAnnotation(Annotations.InternalState)) return true
+    val fullyQualifiedClassName = irClass.fqNameForIrSerialization.asString()
+    if (fullyQualifiedClassName in wellKnownInternalStateClasses) return true
+    if (fullyQualifiedClassName in purityConfig.wellKnownInternalStateClassesFromUser) return true
+    return false
+}
+
 internal fun IrAnnotationContainer.suppressesPurity(): Boolean {
     val suppressFqName = FqName("kotlin.Suppress")
     val suppressAnnotations = annotations.filter { it.isAnnotation(suppressFqName) }
@@ -135,15 +145,9 @@ class CheckFunctionPurityVisitor(
         super.visitSetValue(expression, data)
     }
     
-    private fun isInternalStateClass(irClass: IrClass?): Boolean {
-        if (irClass == null) return false
-        if (irClass.hasAnnotation(Annotations.InternalState)) return true
-        val fullyQualifiedClassName = irClass.fqNameForIrSerialization.asString()
-        if (fullyQualifiedClassName in wellKnownInternalStateClasses) return true
-        if (fullyQualifiedClassName in purityConfig.wellKnownInternalStateClassesFromUser) return true
-        return false
-    }
-    
+    private fun isInternalStateClass(irClass: IrClass?): Boolean = isInternalStateClass(irClass, purityConfig)
+
+
     private val localStateVariables = HashSet<IrVariable>()
     private val checkedLambdaFunctions = HashSet<IrFunction>()
     override fun visitVariable(declaration: IrVariable, data: Unit) {
