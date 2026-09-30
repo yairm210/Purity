@@ -1,3 +1,15 @@
+## 1.8
+
+Added @ReturnsNewInstance marking for functions, allowing us to recognize their return values as "internal state" in functions that call them
+
+## 1.7
+
+Added @Mutated annotation for functions that mutate their inputs, to allow calling them from readonly/pure functions with owned values passed through. 
+
+## 1.6
+
+Allow @Suppress("purity") to work on single var/val assignments
+
 ## 1.5
 
 Better support for overriding pure functions from parent classes/interfaces

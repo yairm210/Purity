@@ -506,6 +506,25 @@ fun testReturnsNewInstanceValidation(){
     fun returnsParameterNotNewInstance(list: ArrayList<Int>): ArrayList<Int> = list
 }
 
+fun testReturnsNewInstanceThroughSafeCall() {
+    // Safe calls (a?.b()) desugar to a null-check wrapper around the real call - the LocalState
+    // detection must see through that wrapper, or `startingUnits` never gets recognized as LocalState
+    class Era {
+        @Readonly @ReturnsNewInstance
+        fun getStartingUnits(): ArrayList<String> = ArrayList()
+    }
+
+    val eras = mapOf("Ancient era" to Era())
+
+    @Readonly
+    fun testSafeCallLocalState(startingEra: String) {
+        val startingUnits = eras[startingEra]?.getStartingUnits()
+        if (startingUnits != null) {
+            startingUnits.add("Warrior") // mutating call - allowed since startingUnits is LocalState
+        }
+    }
+}
+
 fun testReturnsNewInstanceInheritedFromOverride() {
     // Overriding a @ReturnsNewInstance function inherits the same obligation, even without re-annotating
     class ValidFactory : ListFactory {

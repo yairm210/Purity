@@ -38,6 +38,23 @@ fun getLocationForExpression(
 }
 
 
+/** Safe calls (`a?.b()`) desugar to an IrBlock/IrWhen wrapping the null-check and the real call
+ * (roughly: `val tmp = a; if (tmp == null) null else tmp.b()`) - unwraps down to the underlying
+ * expression (e.g. the IrCall to `b`) so purity checks can see through the null-safety wrapper. */
+internal fun unwrapSafeCall(expression: IrExpression): IrExpression {
+    var current = expression
+    while (true) {
+        current = when (current) {
+            is IrBlock -> current.statements.lastOrNull() as? IrExpression ?: return current
+            is IrWhen -> current.branches.firstOrNull { branch ->
+                val result = branch.result
+                !(result is IrConst && result.value == null)
+            }?.result ?: return current
+            else -> return current
+        }
+    }
+}
+
 internal fun IrAnnotationContainer.suppressesPurity(): Boolean {
     val suppressFqName = FqName("kotlin.Suppress")
     val suppressAnnotations = annotations.filter { it.isAnnotation(suppressFqName) }
@@ -130,7 +147,9 @@ class CheckFunctionPurityVisitor(
     private val localStateVariables = HashSet<IrVariable>()
     private val checkedLambdaFunctions = HashSet<IrFunction>()
     override fun visitVariable(declaration: IrVariable, data: Unit) {
-        val initializer = declaration.initializer
+        // Unwrap safe calls (a?.b()) so e.g. `val x = ruleset.eras[era]?.getStartingUnits()` sees
+        // through the null-check wrapper down to the actual IrCall/IrConstructorCall
+        val initializer = declaration.initializer?.let { unwrapSafeCall(it) }
         // If we're initializing a val with a constructor call to a well-known internal state class, it's the same as manually adding @LocalState
         if (!declaration.isVar && initializer is IrConstructorCall
                 && isInternalStateClass(initializer.type.getClass())) {
@@ -302,7 +321,7 @@ class CheckFunctionPurityVisitor(
 
                     // If the val's value came from a function call, marking that function as @ReturnsNewInstance
                     // achieves the same result without needing @LocalState at every call site
-                    val initializer = symbolOwner.initializer
+                    val initializer = symbolOwner.initializer?.let { unwrapSafeCall(it) }
                     if (initializer is IrCall) {
                         val calledFunction = initializer.symbol.owner
                         val calledFunctionFqName = calledFunction.fqNameForIrSerialization.asString()
@@ -356,6 +375,10 @@ class CheckFunctionPurityVisitor(
     /** Whether the current function has mutation rights over [expression]:
      *  value types, auto-detected LocalState, @LocalState/@Mutated annotations, and += IR temporaries. */
     private fun isMutatable(expression: IrExpression): Boolean {
+        // Smart-casts / not-null-asserts (e.g. inside `if (x != null)`, or `x!!`) wrap the GetValue in
+        // an IrTypeOperatorCall without changing which variable is being referenced - unwrap to see through it
+        if (expression is IrTypeOperatorCall) return isMutatable(expression.argument)
+
         val fqName = expression.type.classFqName?.asString()
         // Pure classes - all functions are callable, there is no "mutation"
         if (fqName != null && (fqName in wellKnownPureClasses || fqName in purityConfig.wellKnownPureClassesFromUser)) return true

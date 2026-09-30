@@ -113,7 +113,8 @@ private fun validateReturnsNewInstance(
 
     val visitor = object : IrVisitor<Unit, Unit>() {
         override fun visitVariable(declaration: IrVariable, data: Unit) {
-            val initializer = declaration.initializer
+            // Unwrap safe calls (a?.b()) so e.g. `val x = a?.returnsNewInstanceFun()` is seen through
+            val initializer = declaration.initializer?.let { unwrapSafeCall(it) }
             if (!declaration.isVar) {
                 if (initializer is IrConstructorCall) newInstanceVariables.add(declaration)
                 if (initializer is IrCall && FunctionAnnotations.ReturnsNewInstance.isExplicitlyMarked(initializer.symbol.owner, purityConfig)) {
@@ -125,7 +126,7 @@ private fun validateReturnsNewInstance(
 
         override fun visitReturn(expression: IrReturn, data: Unit) {
             if (expression.returnTargetSymbol == function.symbol) {
-                val value = expression.value
+                val value = unwrapSafeCall(expression.value)
                 val isNewInstance = when (value) {
                     is IrConstructorCall -> true
                     is IrCall -> FunctionAnnotations.ReturnsNewInstance.isExplicitlyMarked(value.symbol.owner, purityConfig)

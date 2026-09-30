@@ -35,6 +35,7 @@ val wellKnownNewInstanceFunctions = setOf(
     "kotlin.collections.flatMapIndexed",
     "kotlin.collections.flatten",
     "kotlin.text.split",
+    "java.util.BitSet.clone",
 ) + getCommonNewInstanceSequenceIterableFunctions().asSequence()
 
 fun getCommonNewInstanceSequenceIterableFunctions(): Set<String> {

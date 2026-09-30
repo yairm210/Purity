@@ -19,6 +19,7 @@ val wellKnownReadonlyFunctions = setOf(
     "java.util.BitSet.get",
     "java.util.BitSet.isEmpty",
     "java.util.BitSet.nextSetBit",
+    "java.util.BitSet.clone",
 
     // kotlin collections
     "kotlin.collections.Iterator.hasNext",
@@ -41,7 +42,7 @@ val wellKnownReadonlyFunctions = setOf(
     "kotlin.collections.minus", // creates a new instance
     "kotlin.collections.plus", // creates a new instanceg
     "kotlin.collections.reversed",
-    "kotlin.collections.intersect",
+    "kotlin.collections.orEmpty",
     "kotlin.collections.getValue",
     "kotlin.collections.firstNotNullOfOrNull",
     "kotlin.collections.randomOrNull",
