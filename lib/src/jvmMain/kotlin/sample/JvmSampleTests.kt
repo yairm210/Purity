@@ -487,6 +487,18 @@ fun testInternalStateMethodsCanOnlyMutateOwnState() {
         fun mutateInnerField() {
             inner.assignY(5)
         }
+
+        // A local function (closure) is not itself a top-level member of the class - it's an
+        // implementation detail of this member function, and is checked as part of its body traversal,
+        // with full access to this function's own local vals - fine
+        fun collectWaypoints(startTile: Int, tiles: List<Int>): List<Int> {
+            val result = mutableListOf<Int>()
+            fun addWaypoint(tile: Int) {
+                if (tile != startTile && (result.isEmpty() || result.last() != tile)) result.add(tile)
+            }
+            tiles.forEach { addWaypoint(it) }
+            return result
+        }
     }
 
     class PlainHelper {
@@ -517,6 +529,12 @@ fun testInternalStateMethodsCanOnlyMutateOwnState() {
             inner.assignY(5)
         }
     }
+
+    // Interface delegation (`by map`) generates synthetic member functions (clear(), putAll(), etc.)
+    // that just forward to the delegate - these are compiler-generated, not user-written, and must not
+    // be validated as if the user wrote a call to an external mutating function inside their own body
+    @ModifiesInternalStateOnly
+    class DelegatingToMap(private val map: HashMap<Int, String> = hashMapOf()) : MutableMap<Int, String> by map
 
     @ModifiesInternalStateOnly
     class BadCall {

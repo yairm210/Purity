@@ -4,6 +4,8 @@ package yairm210.purity.validation
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
 import org.jetbrains.kotlin.ir.IrElement
+import org.jetbrains.kotlin.ir.declarations.IrClass
+import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
 import org.jetbrains.kotlin.ir.declarations.IrField
 import org.jetbrains.kotlin.ir.declarations.IrFunction
 import org.jetbrains.kotlin.ir.declarations.IrParameterKind
@@ -39,6 +41,14 @@ internal fun validateModifiesInternalStateOnly(
 ): List<String> {
     if (!FunctionAnnotations.ModifiesInternalStateOnly.isExplicitlyMarked(function, purityConfig)) return emptyList()
     if (function !is IrSimpleFunction) return emptyList()
+
+    // Local functions (declared inside another function, e.g. a closure like `fun addWaypoint(...)`
+    // inside a member function) are not themselves top-level members of the class - they're an
+    // implementation detail of whichever member function declares them, and are already covered by
+    // that member's own top-to-bottom body traversal (which visits into nested function bodies too).
+    // Checking them again in isolation loses access to the enclosing scope's local vals (e.g. a
+    // `mutableListOf()` captured from the outer function), causing false positives.
+    if (function.parent !is IrClass) return emptyList()
 
     // Checked separately by the normal Pure/Readonly purity checks
     if (ExpectedFunctionPurityChecker.isMarkedAsPure(function, purityConfig)) return emptyList()
@@ -77,6 +87,17 @@ internal fun validateModifiesInternalStateOnly(
         return isInternalStateClass(field.type.getClass(), purityConfig) && isNewInstanceField(field, purityConfig)
     }
 
+    // Interface delegation (`class C : Map<K,V> by map`) generates synthetic member functions that just
+    // forward to the delegate field - trusted (without the freshness check above, since a delegate field
+    // is a fixed, single-assignment implementation slot, not an arbitrary owned object) but ONLY if that
+    // delegate's own class also guarantees it only mutates its own internal state - otherwise forwarding
+    // to it is exactly as unsafe as calling any other external mutating function would be.
+    fun isTrustedDelegateField(expression: IrExpression?): Boolean {
+        if (function.origin != IrDeclarationOrigin.DELEGATED_MEMBER) return false
+        val field = backingFieldOf(expression) ?: return false
+        return isInternalStateClass(field.type.getClass(), purityConfig)
+    }
+
     val descriptor = "Function \"${function.name}\" is marked as @ModifiesInternalStateOnly"
 
     val errorSeverity = if (function.hasAnnotation(Annotations.TestExpectCompileError)) CompilerMessageSeverity.WARNING else CompilerMessageSeverity.ERROR
@@ -107,6 +128,7 @@ internal fun validateModifiesInternalStateOnly(
                         || isThis(receiver) // any method called on this instance is trusted, whatever its purity
                         || ownedInstances.isOwned(receiver) // ...as is one called on a newly-owned local instance
                         || isOwnField(receiver) // ...as is one called on a field of this instance - it's still this instance's own state
+                        || isTrustedDelegateField(receiver) // ...as is a `by`-delegated call forwarded to an internal-state delegate
 
                 if (!allowed) {
                     report(

@@ -20,8 +20,12 @@ import yairm210.purity.validation.wellknown.wellKnownInternalStateClasses
 import yairm210.purity.validation.wellknown.wellKnownPureClasses
 
 
-fun getLocationForExpression(function: IrFunction, expression: IrElement) = 
-    getLocationForExpression(function.fileEntry, expression)
+fun getLocationForExpression(function: IrFunction, expression: IrElement): CompilerMessageLocation {
+    // Some IR nodes (e.g. synthetic super-calls, compiler-generated overrides) have no source offset
+    // of their own - fall back to the enclosing function's location rather than reporting a bogus 1:1
+    val located = if (expression.startOffset >= 0) expression else function
+    return getLocationForExpression(function.fileEntry, located)
+}
 
 fun getLocationForExpression(
     fileEntry: IrFileEntry,
