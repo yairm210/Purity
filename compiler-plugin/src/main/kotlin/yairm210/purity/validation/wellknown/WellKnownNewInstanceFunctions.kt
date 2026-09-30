@@ -6,11 +6,11 @@ package yairm210.purity.validation.wellknown
  *  This is unnecessary for immutable classes, since they can't be mutated regardless.
  *
  *  Note: being Pure does NOT imply returning a new instance - a Pure function may return a
- *  shared/cached reference (e.g. a val getter), so purity alone must never be used to infer freshness.
+ *  shared/cached reference (e.g. a val getter), so purity alone must never be used to infer that the returned value is a new instance.
  * */
 
 val wellKnownNewInstanceFunctions = setOf(
-    // Collection builder functions - always allocate a fresh instance.
+    // Collection builder functions - always allocate a new instance.
     "kotlin.collections.mutableListOf",
     "kotlin.collections.mutableSetOf",
     "kotlin.collections.mutableMapOf",
@@ -22,9 +22,9 @@ val wellKnownNewInstanceFunctions = setOf(
     "kotlin.collections.hashMapOf",
     "kotlin.collections.linkedMapOf",
 
-    // These return a shared singleton, not a fresh instance - but their static type is the
+    // These return a shared singleton, not a new instance - but their static type is the
     // read-only (immutable) collection interface, so no caller can ever mutate through it anyway.
-    // Practically indistinguishable from a fresh instance for purity purposes.
+    // Practically indistinguishable from a new instance for purity purposes.
     "kotlin.collections.emptyList",
     "kotlin.collections.emptySet",
     "kotlin.collections.emptyMap",

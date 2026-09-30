@@ -453,8 +453,15 @@ fun testInternalStateMethodsCanOnlyMutateOwnState() {
     fun externalMutatingFunction() { externalVar += 1 }
 
     @ModifiesInternalStateOnly
+    class Inner {
+        var y = 0
+        fun assignY(value: Int) { y = value }
+    }
+
+    @ModifiesInternalStateOnly
     class Good {
         var x = 0
+        val inner = Inner()
         fun assignX(value: Int) { x = value } // mutating own field - fine
 
         @Readonly
@@ -469,10 +476,45 @@ fun testInternalStateMethodsCanOnlyMutateOwnState() {
         }
 
         fun clone(): Good {
-            val new = Good() // freshly constructed, unaliased - safe to mutate
+            val new = Good() // newly constructed, unaliased - safe to mutate
             new.x = this.x
             new.assignX(this.x + 1)
             return new
+        }
+
+        // Calling a mutating method on a field whose own class is also @ModifiesInternalStateOnly - fine,
+        // since that class itself guarantees it only mutates state that it owns
+        fun mutateInnerField() {
+            inner.assignY(5)
+        }
+    }
+
+    class PlainHelper {
+        var y = 0
+        fun assignY(value: Int) { y = value }
+    }
+
+    @ModifiesInternalStateOnly
+    class BadFieldOfPlainType {
+        val helper = PlainHelper()
+        @TestExpectCompileError
+        fun mutateHelperField() {
+            // PlainHelper is not @ModifiesInternalStateOnly (nor a well-known internal-state class),
+            // so it offers no guarantee about what its methods might do - NOT allowed, even though
+            // helper is this instance's own field
+            helper.assignY(5)
+        }
+    }
+
+    @ModifiesInternalStateOnly
+    class BadWhitewashedField(externallyHeldInner: Inner) {
+        // Field's class is @ModifiesInternalStateOnly, but the val is assigned from a constructor
+        // parameter - the caller may still hold this same Inner reference, so it's NOT owned by this
+        // instance, even though it looks like an "internal state field" at a glance
+        val inner = externallyHeldInner
+        @TestExpectCompileError
+        fun mutateInnerField() {
+            inner.assignY(5)
         }
     }
 

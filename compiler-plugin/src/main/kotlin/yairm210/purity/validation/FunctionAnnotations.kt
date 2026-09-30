@@ -161,7 +161,7 @@ fun suggestReturnsNewInstanceFix(calledFunction: IrFunction, purityConfig: Purit
     val isCompilationAvailable = calledFunction.body != null
     return when {
         !isCompilationAvailable ->
-            " - If \"$calledFunctionFqName\" always returns a freshly allocated instance not aliased elsewhere, " +
+            " - If \"$calledFunctionFqName\" always returns a newly allocated instance not aliased elsewhere, " +
                 "you can add \"$calledFunctionFqName\" to wellKnownNewInstanceFunctions via the PurityConfiguration in gradle - " +
                 "see https://yairm210.github.io/Purity/usage/advanced-usage/#marking-functions-as-returning-a-new-instance \n"
         checkReturnsNewInstanceBody(calledFunction, purityConfig).isEmpty() ->

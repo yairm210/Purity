@@ -4,16 +4,19 @@ package yairm210.purity.validation
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
 import org.jetbrains.kotlin.ir.IrElement
+import org.jetbrains.kotlin.ir.declarations.IrField
 import org.jetbrains.kotlin.ir.declarations.IrFunction
 import org.jetbrains.kotlin.ir.declarations.IrParameterKind
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
 import org.jetbrains.kotlin.ir.declarations.IrVariable
 import org.jetbrains.kotlin.ir.expressions.IrCall
 import org.jetbrains.kotlin.ir.expressions.IrExpression
+import org.jetbrains.kotlin.ir.expressions.IrGetField
 import org.jetbrains.kotlin.ir.expressions.IrGetValue
 import org.jetbrains.kotlin.ir.expressions.IrSetField
 import org.jetbrains.kotlin.ir.expressions.IrSetValue
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
+import org.jetbrains.kotlin.ir.types.getClass
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.ir.visitors.IrVisitor
 import yairm210.purity.PurityConfig
@@ -48,11 +51,33 @@ internal fun validateModifiesInternalStateOnly(
     fun isThis(expression: IrExpression?): Boolean =
         expression is IrGetValue && expression.symbol.owner == thisReceiver
 
-    // A freshly constructed (or @ReturnsNewInstance-returned) local val is guaranteed unaliased, so
+    // A newly constructed (or @ReturnsNewInstance-returned) local val is guaranteed unaliased, so
     // mutating it is just as safe as mutating `this` - e.g. `val new = Foo(); new.x = 1` in a clone() method
     val ownedInstances = OwnedInstanceVariableTracker(purityConfig)
 
-    val descriptor = "Function \"${function.name}\" is marked as (or is a method of a class marked as) @ModifiesInternalStateOnly"
+    // A field of `this` instance is itself state this instance owns - but only if A. that field's own
+    // class also guarantees it only mutates its own internal state, and B. the field is a val whose
+    // declared initializer is itself a new (constructor/@ReturnsNewInstance) instance - otherwise the
+    // check could be "whitewashed": declare an internal-state-class val field, but actually assign it
+    // (e.g. via the constructor) a reference some external caller still holds, then mutate it through
+    // a call on the field - defeating the "may only mutate state that it owns" guarantee entirely.
+    fun receiverOf(call: IrCall): IrExpression? {
+        val index = call.symbol.owner.parameters
+            .indexOfFirst { it.kind == IrParameterKind.DispatchReceiver || it.kind == IrParameterKind.ExtensionReceiver }
+        return if (index != -1) call.arguments[index] else null
+    }
+    fun backingFieldOf(expression: IrExpression?): IrField? = when (expression) {
+        is IrGetField -> if (isThis(expression.receiver)) expression.symbol.owner else null
+        is IrCall -> if (expression.symbol.owner.isGetter && isThis(receiverOf(expression)))
+            expression.symbol.owner.correspondingPropertySymbol?.owner?.backingField else null
+        else -> null
+    }
+    fun isOwnField(expression: IrExpression?): Boolean {
+        val field = backingFieldOf(expression) ?: return false
+        return isInternalStateClass(field.type.getClass(), purityConfig) && isNewInstanceField(field, purityConfig)
+    }
+
+    val descriptor = "Function \"${function.name}\" is marked as @ModifiesInternalStateOnly"
 
     val errorSeverity = if (function.hasAnnotation(Annotations.TestExpectCompileError)) CompilerMessageSeverity.WARNING else CompilerMessageSeverity.ERROR
     val messages = mutableListOf<String>()
@@ -80,12 +105,13 @@ internal fun validateModifiesInternalStateOnly(
                 val allowed = ExpectedFunctionPurityChecker.isMarkedAsPure(calledFunction, purityConfig)
                         || ExpectedFunctionPurityChecker.isReadonly(calledFunction, purityConfig)
                         || isThis(receiver) // any method called on this instance is trusted, whatever its purity
-                        || ownedInstances.isOwned(receiver) // ...as is one called on a freshly-owned local instance
+                        || ownedInstances.isOwned(receiver) // ...as is one called on a newly-owned local instance
+                        || isOwnField(receiver) // ...as is one called on a field of this instance - it's still this instance's own state
 
                 if (!allowed) {
                     report(
                         "$descriptor but calls \"${calledFunction.fqNameForIrSerialization}\", which is not Pure, Readonly, " +
-                            "or a method called on this instance or an owned local instance.\n" +
+                            "or a method called on this instance, an owned local instance, or a field of this instance.\n" +
                             " - @ModifiesInternalStateOnly may only mutate state that it owns.\n",
                         expression
                     )
@@ -109,8 +135,8 @@ internal fun validateModifiesInternalStateOnly(
         }
 
         override fun visitSetField(expression: IrSetField, data: Unit) {
-            val isOwnField = isThis(expression.receiver) || ownedInstances.isOwned(expression.receiver)
-            if (!isOwnField) {
+            val isOwnedReceiver = isThis(expression.receiver) || ownedInstances.isOwned(expression.receiver)
+            if (!isOwnedReceiver) {
                 report(
                     "$descriptor but sets field \"${expression.symbol.owner.name}\" on an object other than this instance or an owned local instance.\n" +
                         " - @ModifiesInternalStateOnly may only mutate state that it owns.\n",

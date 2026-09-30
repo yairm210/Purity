@@ -65,14 +65,31 @@ internal fun isInternalStateClass(irClass: IrClass?, purityConfig: PurityConfig)
     return false
 }
 
-/** Tracks local vals that are guaranteed to hold a freshly-allocated, unaliased instance - either a
+/** Is [initializer] (after unwrapping safe calls) a constructor call, or a call to a function known
+ * to return a new instance (@ReturnsNewInstance, or well-known e.g. toMutableList())? Such a value is
+ * guaranteed newly-allocated and unaliased at the point of initialization. */
+internal fun isNewInstanceExpression(initializer: IrExpression?, purityConfig: PurityConfig): Boolean {
+    val unwrapped = initializer?.let { unwrapSafeCall(it) } ?: return false
+    if (unwrapped is IrConstructorCall) return true
+    if (unwrapped is IrCall && FunctionAnnotations.ReturnsNewInstance.isExplicitlyMarked(unwrapped.symbol.owner, purityConfig)) return true
+    return false
+}
+
+/** Is [field] a `val` whose declared initializer is a new-instance expression (see [isNewInstanceExpression])?
+ * Used to trust field-of-`this` access the same way a newly-constructed local val is trusted - without this,
+ * a field could be "whitewashed": declare it as an internal-state-class val, but actually assign it (via the
+ * constructor, say) a reference some external caller still holds, then mutate it through a call on the field. */
+internal fun isNewInstanceField(field: IrField, purityConfig: PurityConfig): Boolean =
+    field.isFinal && isNewInstanceExpression(field.initializer?.expression, purityConfig)
+
+/** Tracks local vals that are guaranteed to hold a newly-allocated, unaliased instance - either a
  * direct constructor call, or a call to a function known to return a new instance (@ReturnsNewInstance,
  * or well-known e.g. toMutableList()). Feed every [IrVariable] in scope to [visitVariable], then use
  * [isOwned]/[contains] to check whether an expression/variable refers to one of the tracked instances.
  *
  * If [requireInternalStateClass] is set, only instances whose type is itself a well-known/annotated
  * internal-state class are tracked - used where the mutation-rights grant should be limited to such
- * (e.g. @Mutated parameter passing under @Pure/@Readonly). Otherwise, any freshly-owned instance counts,
+ * (e.g. @Mutated parameter passing under @Pure/@Readonly). Otherwise, any newly-owned instance counts,
  * regardless of its type (e.g. @ModifiesInternalStateOnly's clone-and-mutate pattern, or @ReturnsNewInstance's
  * "local val assigned from a constructor/another @ReturnsNewInstance call" rule). */
 internal class OwnedInstanceVariableTracker(
@@ -83,14 +100,10 @@ internal class OwnedInstanceVariableTracker(
 
     fun visitVariable(declaration: IrVariable) {
         if (declaration.isVar) return
-        // Unwrap safe calls (a?.b()) so e.g. `val x = a?.returnsNewInstanceFun()` is seen through
-        val initializer = declaration.initializer?.let { unwrapSafeCall(it) } ?: return
-        if (requireInternalStateClass && !isInternalStateClass(initializer.type.getClass(), purityConfig)) return
-
-        if (initializer is IrConstructorCall) trackedVariables.add(declaration)
-        if (initializer is IrCall && FunctionAnnotations.ReturnsNewInstance.isExplicitlyMarked(initializer.symbol.owner, purityConfig)) {
-            trackedVariables.add(declaration)
-        }
+        if (!isNewInstanceExpression(declaration.initializer, purityConfig)) return
+        val initializer = declaration.initializer?.let { unwrapSafeCall(it) }
+        if (requireInternalStateClass && !isInternalStateClass(initializer?.type?.getClass(), purityConfig)) return
+        trackedVariables.add(declaration)
     }
 
     fun isOwned(expression: IrExpression?): Boolean =
@@ -179,7 +192,7 @@ class CheckFunctionPurityVisitor(
         super.visitSetValue(expression, data)
     }
     
-    // Vals initialized with a freshly-allocated, unaliased instance of a well-known internal state
+    // Vals initialized with a newly-allocated, unaliased instance of a well-known internal state
     // class - the same as manually adding @LocalState
     private val localStateVariables = OwnedInstanceVariableTracker(purityConfig, requireInternalStateClass = true)
     private val checkedLambdaFunctions = HashSet<IrFunction>()
