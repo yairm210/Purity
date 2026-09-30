@@ -371,6 +371,37 @@ fun testLocalStateRecognizedAutomaticallyForKnownClasses(){
     }
 }
 
+fun testTrustedDefaultSetterOnOwnedInstanceOfPlainClass() {
+    // PlainData is not a well-known internal-state class, nor @ModifiesInternalStateOnly - but its
+    // setter for `value` is a compiler-generated default setter (just `field = value`), so it's trusted
+    // on an owned (freshly-constructed) local instance even though the class itself offers no guarantee
+    class PlainData {
+        var value = 0
+    }
+
+    @Pure
+    fun assignOnOwnedPlainInstance() {
+        val data = PlainData()
+        data.value = 5 // fine - default setter on an owned instance
+    }
+
+    open class OpenData {
+        open var value = 0
+    }
+    class OverriddenData : OpenData() {
+        var sideEffectCount = 0
+        override var value: Int
+            get() = super.value
+            set(newValue) { sideEffectCount += 1; super.value = newValue } // has a real side effect
+    }
+
+    @Pure @TestExpectCompileError
+    fun assignOnOwnedOpenInstance() {
+        val data: OpenData = OverriddenData() // static type OpenData, but could be any subclass
+        data.value = 5 // NOT allowed - open setter could resolve to an override with side effects
+    }
+}
+
 fun testInheritingFunctionsInheritSuppression(){
     var external = 0 
     open class A{
@@ -498,6 +529,18 @@ fun testInternalStateMethodsCanOnlyMutateOwnState() {
             }
             tiles.forEach { addWaypoint(it) }
             return result
+        }
+
+        // Invoking a lambda that is itself marked @Readonly or @Pure is fine - both guarantee it won't
+        // mutate anything outside itself
+        fun invokeReadonlyLambda(@Readonly action: () -> Int): Int {
+            return action()
+        }
+
+        // Invoking ANY lambda is allowed, unmarked or not - same as @Pure/@Readonly (which intentionally
+        // do not check the lambda's own purity annotations at the invoke() call site)
+        fun invokeUnmarkedLambda(action: () -> Int): Int {
+            return action()
         }
     }
 

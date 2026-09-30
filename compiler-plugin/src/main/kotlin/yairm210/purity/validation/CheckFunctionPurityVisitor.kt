@@ -4,6 +4,7 @@ package yairm210.purity.validation
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageLocation
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
+import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.IrFileEntry
 import org.jetbrains.kotlin.ir.declarations.*
@@ -57,6 +58,35 @@ internal fun unwrapSafeCall(expression: IrExpression): IrExpression {
         }
     }
 }
+
+/** Does [irExpression] represent something bearing [annotation] - a local var/parameter annotated
+ * directly, a smart-cast/`!!`-wrapped one, or a getter call for a property annotated with it? */
+internal fun representsAnnotationBearer(irExpression: IrExpression, annotation: FqName): Boolean {
+    if (irExpression is IrGetValue) { // local function variable
+        return irExpression.symbol.owner.hasAnnotation(annotation)
+    }
+    if (irExpression is IrTypeOperatorCall){ // This seems to be type conversion? I'm not sure honestly, seems pretty random to me where it pops up
+        return representsAnnotationBearer(irExpression.argument, annotation)
+    }
+    if (irExpression is IrCall) {
+        return irExpression.symbol.owner.let {
+            it == it.correspondingPropertySymbol?.owner?.getter // A getter..
+                    // ... for a property that is immutable
+                    && it.correspondingPropertySymbol?.owner?.hasAnnotation(annotation) == true
+        }
+    }
+    return false
+}
+
+/** Is [function] a compiler-generated default property setter (no custom body - just `field = value`),
+ * that is also `final`? Such a setter is exactly equivalent to a raw field set, with zero risk of any
+ * other side effect, regardless of what class it belongs to - so it can be trusted on any receiver the
+ * caller already has mutation/ownership rights over, without needing that class to otherwise be
+ * "safe" (e.g. well-known-internal-state or @ModifiesInternalStateOnly). Must be `final`: an `open`/
+ * overridable setter could resolve, at runtime, to a subclass override with arbitrary side effects,
+ * even though this call site's symbol still points at the (harmless) base default accessor. */
+internal fun isTrustedDefaultSetter(function: IrSimpleFunction): Boolean =
+    function.isSetter && function.origin == IrDeclarationOrigin.DEFAULT_PROPERTY_ACCESSOR && function.modality == Modality.FINAL
 
 /** Is [irClass] marked as InternalState - directly, or via well-known FQN (built-in or user config). */
 internal fun isInternalStateClass(irClass: IrClass?, purityConfig: PurityConfig): Boolean {
@@ -199,9 +229,15 @@ class CheckFunctionPurityVisitor(
     // Vals initialized with a newly-allocated, unaliased instance of a well-known internal state
     // class - the same as manually adding @LocalState
     private val localStateVariables = OwnedInstanceVariableTracker(purityConfig, requireInternalStateClass = true)
+
+    // Same, but with no class restriction - only used to trust default property setter calls (see
+    // isTrustedDefaultSetter below), since those are provably side-effect-free regardless of class
+    private val ownedInstances = OwnedInstanceVariableTracker(purityConfig)
+
     private val checkedLambdaFunctions = HashSet<IrFunction>()
     override fun visitVariable(declaration: IrVariable, data: Unit) {
         localStateVariables.visitVariable(declaration)
+        ownedInstances.visitVariable(declaration)
 
         // If this specific statement is suppressed, skip purity checking of the initializer
         if (declaration.suppressesPurity()) return
@@ -280,6 +316,9 @@ class CheckFunctionPurityVisitor(
             return isMutatable(receiver)
         }
 
+        fun receiverIsOwnedForDefaultSetter(): Boolean =
+            isTrustedDefaultSetter(calledFunction) && (receiverIsMutatable() || ownedInstances.isOwned(receiver))
+
         val calledFunctionPurity = when {
             // Pure function
             ExpectedFunctionPurityChecker.isMarkedAsPure(calledFunction, purityConfig)
@@ -290,6 +329,7 @@ class CheckFunctionPurityVisitor(
                 -> FunctionPurity.Pure
 
             receiverIsMutatable()
+                    || receiverIsOwnedForDefaultSetter()
                     // Allow setting @Cache properties
                     || calledFunction.isSetter && calledFunction.correspondingPropertySymbol?.owner?.hasAnnotation(Annotations.Cache) == true
                 -> FunctionPurity.Pure
@@ -371,22 +411,6 @@ class CheckFunctionPurityVisitor(
         )
     }
 
-    private fun representsAnnotationBearer(irExpression: IrExpression, annotation: FqName): Boolean {
-        if (irExpression is IrGetValue) { // local function variable
-            return irExpression.symbol.owner.hasAnnotation(annotation)
-        }
-        if (irExpression is IrTypeOperatorCall){ // This seems to be type conversion? I'm not sure honestly, seems pretty random to me where it pops up 
-            return representsAnnotationBearer(irExpression.argument, annotation)
-        }
-        if (irExpression is IrCall) {
-            return irExpression.symbol.owner.let {
-                it == it.correspondingPropertySymbol?.owner?.getter // A getter..
-                        // ... for a property that is immutable
-                        && it.correspondingPropertySymbol?.owner?.hasAnnotation(annotation) == true
-            }
-        }
-        return false
-    }
 
 
     /** Whether the current function has mutation rights over [expression]:

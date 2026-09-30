@@ -87,6 +87,13 @@ internal fun validateModifiesInternalStateOnly(
         return isInternalStateClass(field.type.getClass(), purityConfig) && isNewInstanceField(field, purityConfig)
     }
 
+    // A trusted default property setter (see isTrustedDefaultSetter) is exactly equivalent to a raw
+    // field set, regardless of what class it belongs to - trusted under the same conditions as a
+    // direct field set (this/owned-local receiver), without needing the receiver's class to itself
+    // be @ModifiesInternalStateOnly.
+    fun isOwnedReceiverForDefaultSetter(calledFunction: IrSimpleFunction, receiver: IrExpression?): Boolean =
+        isTrustedDefaultSetter(calledFunction) && (isThis(receiver) || ownedInstances.isOwned(receiver))
+
     // Interface delegation (`class C : Map<K,V> by map`) generates synthetic member functions that just
     // forward to the delegate field - trusted (without the freshness check above, since a delegate field
     // is a fixed, single-assignment implementation slot, not an arbitrary owned object) but ONLY if that
@@ -97,6 +104,12 @@ internal fun validateModifiesInternalStateOnly(
         val field = backingFieldOf(expression) ?: return false
         return isInternalStateClass(field.type.getClass(), purityConfig)
     }
+
+    // Invoking any function value is trusted, same as @Pure/@Readonly (see CheckFunctionPurityVisitor) -
+    // intentionally not checking the lambda's own purity annotations; @ModifiesInternalStateOnly must be
+    // at least as permissive as @Readonly, which already allows this unconditionally
+    fun isInvokingLambda(calledFunction: IrSimpleFunction, receiver: IrExpression?): Boolean =
+        calledFunction.name.asString() == "invoke" && receiver?.type?.isFunction() == true
 
     val descriptor = "Function \"${function.name}\" is marked as @ModifiesInternalStateOnly"
 
@@ -127,8 +140,15 @@ internal fun validateModifiesInternalStateOnly(
                         || ExpectedFunctionPurityChecker.isReadonly(calledFunction, purityConfig)
                         || isThis(receiver) // any method called on this instance is trusted, whatever its purity
                         || ownedInstances.isOwned(receiver) // ...as is one called on a newly-owned local instance
+                        || (receiver != null && (representsAnnotationBearer(receiver, Annotations.Mutated)
+                            || representsAnnotationBearer(receiver, Annotations.LocalState)
+                            || representsAnnotationBearer(receiver, Annotations.Cache))) // ...as is one called on a parameter/val this function has mutation rights over
                         || isOwnField(receiver) // ...as is one called on a field of this instance - it's still this instance's own state
                         || isTrustedDelegateField(receiver) // ...as is a `by`-delegated call forwarded to an internal-state delegate
+                        || isOwnedReceiverForDefaultSetter(calledFunction, receiver) // ...as is a plain, non-overridable default setter on an owned receiver
+                        || isInvokingLambda(calledFunction, receiver) // ...as is invoking any lambda, same as @Pure/@Readonly
+                        // Allow setting @Cache properties, same as @Pure/@Readonly
+                        || (calledFunction.isSetter && calledFunction.correspondingPropertySymbol?.owner?.hasAnnotation(Annotations.Cache) == true)
 
                 if (!allowed) {
                     report(
