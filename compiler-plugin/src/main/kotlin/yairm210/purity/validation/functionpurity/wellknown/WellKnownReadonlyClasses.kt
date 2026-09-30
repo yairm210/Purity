@@ -1,4 +1,4 @@
-package yairm210.purity.validation.wellknown
+package yairm210.purity.validation.functionpurity.wellknown
 
 /** All the functions of these are readonly */
 val wellKnownReadonlyClasses = setOf(

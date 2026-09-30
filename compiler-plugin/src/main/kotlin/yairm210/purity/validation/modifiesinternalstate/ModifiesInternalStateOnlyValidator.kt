@@ -1,5 +1,5 @@
 @file:OptIn(UnsafeDuringIrConstructionAPI::class)
-package yairm210.purity.validation
+package yairm210.purity.validation.modifiesinternalstate
 
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
@@ -23,6 +23,17 @@ import org.jetbrains.kotlin.ir.types.getClass
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.ir.visitors.IrVisitor
 import yairm210.purity.PurityConfig
+import yairm210.purity.validation.Annotations
+import yairm210.purity.validation.FunctionAnnotations
+import yairm210.purity.validation.OwnedInstanceVariableTracker
+import yairm210.purity.validation.functionpurity.ExpectedFunctionPurityChecker
+import yairm210.purity.validation.getLocationForExpression
+import yairm210.purity.validation.isInternalStateClass
+import yairm210.purity.validation.isNewInstanceField
+import yairm210.purity.validation.isTrustedDefaultSetter
+import yairm210.purity.validation.representsAnnotationBearer
+import yairm210.purity.validation.suppressesPurity
+import yairm210.purity.validation.unwrapCompoundAssignmentTemp
 
 /**
  * Validates the contract of `@ModifiesInternalStateOnly`: "can mutate *only* state that it owns".

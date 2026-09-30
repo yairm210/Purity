@@ -1,4 +1,4 @@
-package yairm210.purity.validation.wellknown
+package yairm210.purity.validation.returnsnewinstance.wellknown
 
 /** Functions that return a new instance
  * This means that if the type is InternalState,

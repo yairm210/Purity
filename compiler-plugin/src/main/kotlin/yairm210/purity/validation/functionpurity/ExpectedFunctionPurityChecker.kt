@@ -1,5 +1,5 @@
 @file:OptIn(UnsafeDuringIrConstructionAPI::class)
-package yairm210.purity.validation
+package yairm210.purity.validation.functionpurity
 
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.*
@@ -7,7 +7,9 @@ import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.name.FqName
 import yairm210.purity.PurityConfig
-import yairm210.purity.validation.wellknown.*
+import yairm210.purity.validation.FunctionAnnotations
+import yairm210.purity.validation.functionpurity.wellknown.wellKnownPureFunctionsPrefixes
+import yairm210.purity.validation.getAllOverriddenFunctions
 
 /** Checks the expected purity of a given IrFunction.
  * Unlike [CheckFunctionPurityVisitor] this is not a deep dive into the function.
@@ -135,13 +137,4 @@ object ExpectedFunctionPurityChecker {
 
         return false
     }
-}
-
-// overriddenSymbols only gives you the *direct* overrides, not the transitive ones.
-internal fun getAllOverriddenFunctions(function: IrSimpleFunction): Sequence<IrSimpleFunction> {
-    return function.overriddenSymbols.asSequence()
-        .flatMap {
-            val owner = it.owner
-            sequenceOf(owner) + getAllOverriddenFunctions(owner)
-        }
 }

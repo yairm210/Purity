@@ -10,6 +10,9 @@ import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
 import org.jetbrains.kotlin.ir.util.*
 import yairm210.purity.PurityConfig
 import yairm210.purity.boilerplate.DebugLogger
+import yairm210.purity.validation.functionpurity.CheckFunctionPurityVisitor
+import yairm210.purity.validation.functionpurity.ExpectedFunctionPurityChecker
+import yairm210.purity.validation.functionpurity.FunctionPurity
 
 /** 
  * Iterates over all functions in the IR.

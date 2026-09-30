@@ -1,4 +1,4 @@
-package yairm210.purity.validation
+package yairm210.purity.validation.functionpurity
 
 enum class FunctionPurity {
     None,
