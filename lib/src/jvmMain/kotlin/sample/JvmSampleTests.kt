@@ -519,6 +519,17 @@ fun testInternalStateMethodsCanOnlyMutateOwnState() {
             inner.assignY(5)
         }
 
+        val innerList = mutableListOf<Inner>()
+        // `+=` on a nullable @LocalState val's property evaluates the receiver once into a compiler
+        // generated temp (to avoid re-evaluating the smart-cast/not-null check) - the temp var itself
+        // isn't annotated, so ownership checks must see through it to the original @LocalState val
+        fun bumpMatchingInner(target: Int) {
+            @LocalState val match = innerList.firstOrNull { it.y == target }
+            if (match != null) {
+                match.y += 1
+            }
+        }
+
         // A local function (closure) is not itself a top-level member of the class - it's an
         // implementation detail of this member function, and is checked as part of its body traversal,
         // with full access to this function's own local vals - fine

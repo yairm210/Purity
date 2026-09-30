@@ -88,6 +88,23 @@ internal fun representsAnnotationBearer(irExpression: IrExpression, annotation: 
 internal fun isTrustedDefaultSetter(function: IrSimpleFunction): Boolean =
     function.isSetter && function.origin == IrDeclarationOrigin.DEFAULT_PROPERTY_ACCESSOR && function.modality == Modality.FINAL
 
+/** `+=`/`*=` (and smart-casts/`!!` on a nullable) evaluate the receiver once into a compiler-generated
+ * temp val to avoid re-evaluating a possibly-side-effecting expression, e.g. `equivalentOffer.amount +=
+ * x` (where `equivalentOffer` is a nullable `@LocalState val`) lowers to roughly `val tmp = <not-null
+ * check>(equivalentOffer); tmp.amount = tmp.amount + x`. Unwraps such a temp down to the real underlying
+ * expression it copies, so annotation/ownership checks on the original declaration still see through it. */
+internal fun unwrapCompoundAssignmentTemp(expression: IrExpression?): IrExpression? {
+    if (expression !is IrGetValue) return expression
+    val owner = expression.symbol.owner
+    if (owner !is IrVariable || owner.isVar) return expression
+    val initializer = owner.initializer ?: return expression
+    val unwrappedInitializer = if (initializer is IrTypeOperatorCall) initializer.argument else initializer
+    // Only unwrap simple alias chains (temp := otherVal) - not e.g. `val tmp = Foo()`, where unwrapping
+    // would change the expression's identity/meaning rather than just seeing through a compiler-inserted copy
+    if (unwrappedInitializer !is IrGetValue) return expression
+    return unwrapCompoundAssignmentTemp(unwrappedInitializer)
+}
+
 /** Is [irClass] marked as InternalState - directly, or via well-known FQN (built-in or user config). */
 internal fun isInternalStateClass(irClass: IrClass?, purityConfig: PurityConfig): Boolean {
     if (irClass == null) return false
@@ -420,6 +437,10 @@ class CheckFunctionPurityVisitor(
         // an IrTypeOperatorCall without changing which variable is being referenced - unwrap to see through it
         if (expression is IrTypeOperatorCall) return isMutatable(expression.argument)
 
+        // `+=`/`*=`-generated temp val (a copy of the real receiver) - unwrap down to what it copies
+        val unwrapped = unwrapCompoundAssignmentTemp(expression)
+        if (unwrapped !== expression) return isMutatable(unwrapped!!)
+
         val fqName = expression.type.classFqName?.asString()
         // Pure classes - all functions are callable, there is no "mutation"
         if (fqName != null && (fqName in wellKnownPureClasses || fqName in purityConfig.wellKnownPureClassesFromUser)) return true
@@ -429,19 +450,7 @@ class CheckFunctionPurityVisitor(
         if (representsAnnotationBearer(expression, Annotations.LocalState)) return true
         if (representsAnnotationBearer(expression, Annotations.Mutated)) return true
         if (representsAnnotationBearer(expression, Annotations.Cache)) return true
-        
-        // += / *= patterns: temp val initialized from a LocalState variable
-        if (expression is IrGetValue) {
-            val symbolOwner = expression.symbol.owner
-            if (symbolOwner is IrVariable && !symbolOwner.isVar) {
-                val initializer = symbolOwner.initializer
-                if (initializer is IrGetValue) {
-                    val initializerOwner = initializer.symbol.owner
-                    if (localStateVariables.contains(initializerOwner)) return true
-                    if (initializerOwner.hasAnnotation(Annotations.LocalState)) return true
-                }
-            }
-        }
+
         return false
     }
 

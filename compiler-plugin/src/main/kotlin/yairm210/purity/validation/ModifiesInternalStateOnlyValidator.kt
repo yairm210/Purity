@@ -17,6 +17,7 @@ import org.jetbrains.kotlin.ir.expressions.IrGetField
 import org.jetbrains.kotlin.ir.expressions.IrGetValue
 import org.jetbrains.kotlin.ir.expressions.IrSetField
 import org.jetbrains.kotlin.ir.expressions.IrSetValue
+import org.jetbrains.kotlin.ir.expressions.IrTypeOperatorCall
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
 import org.jetbrains.kotlin.ir.types.getClass
 import org.jetbrains.kotlin.ir.util.*
@@ -134,7 +135,11 @@ internal fun validateModifiesInternalStateOnly(
             if (function !in calledFunction.parents) {
                 val receiverIndex = calledFunction.parameters
                     .indexOfFirst { it.kind == IrParameterKind.DispatchReceiver || it.kind == IrParameterKind.ExtensionReceiver }
-                val receiver = if (receiverIndex != -1) expression.arguments[receiverIndex] else null
+                val rawReceiver = if (receiverIndex != -1) expression.arguments[receiverIndex] else null
+                // Smart-casts/`!!` (IrTypeOperatorCall) and `+=`/`*=`-generated temp vals wrap/copy the
+                // real receiver without changing its identity - see through both to the real expression
+                val unwrappedOnce = if (rawReceiver is IrTypeOperatorCall) rawReceiver.argument else rawReceiver
+                val receiver = unwrapCompoundAssignmentTemp(unwrappedOnce)
 
                 val allowed = ExpectedFunctionPurityChecker.isMarkedAsPure(calledFunction, purityConfig)
                         || ExpectedFunctionPurityChecker.isReadonly(calledFunction, purityConfig)
@@ -177,7 +182,10 @@ internal fun validateModifiesInternalStateOnly(
         }
 
         override fun visitSetField(expression: IrSetField, data: Unit) {
-            val isOwnedReceiver = isThis(expression.receiver) || ownedInstances.isOwned(expression.receiver)
+            val rawReceiver = expression.receiver
+            val unwrappedOnce = if (rawReceiver is IrTypeOperatorCall) rawReceiver.argument else rawReceiver
+            val receiver = unwrapCompoundAssignmentTemp(unwrappedOnce)
+            val isOwnedReceiver = isThis(receiver) || ownedInstances.isOwned(receiver)
             if (!isOwnedReceiver) {
                 report(
                     "$descriptor but sets field \"${expression.symbol.owner.name}\" on an object other than this instance or an owned local instance.\n" +
