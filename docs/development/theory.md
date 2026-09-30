@@ -68,7 +68,5 @@ Subclasses can override parent class functions, and can add functions of their o
 So for new functions, it seems clear that we should not treat the parent class's annotation as binding;
 To activate the new function the caller needs to know it's the new class.
 
-But for existing functions, here we have a hole in our validation: Ideally we should check they follow the rules, but currently we don't. 
-
-For functions marked *explicitly* with an annotation, we do validate that subclass implementations follow the rules set out by the parent class,
-to avoid overloads bypassing the validation mechanism.
+But for existing (overridden) functions, we validate that subclass implementations follow the rules
+of the annotation to avoid overrides silently bypassing the validation mechanism.

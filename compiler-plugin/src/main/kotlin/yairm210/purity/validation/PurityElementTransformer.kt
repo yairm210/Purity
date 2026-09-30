@@ -82,9 +82,9 @@ internal class PurityElementTransformer(
         // @ReturnsNewInstance is orthogonal to Pure/Readonly/None, so it's validated independently
         val returnsNewInstanceMessages = FunctionAnnotations.ReturnsNewInstance.validate(declaration, purityConfig, messageCollector)
 
-        // @InternalState's "may only mutate state it owns" contract is likewise orthogonal, and only
-        // applies to methods of an @InternalState class that aren't already Pure/Readonly
-        val internalStateMessages = validateInternalStateMethod(declaration, purityConfig, messageCollector)
+        // @ModifiesInternalStateOnly's "may only mutate state it owns" contract is likewise orthogonal,
+        // and only applies to functions marked as such (directly, or via their class) that aren't already Pure/Readonly
+        val internalStateMessages = FunctionAnnotations.ModifiesInternalStateOnly.validate(declaration, purityConfig, messageCollector)
 
         val hasErrored = visitor.hasErrored || returnsNewInstanceMessages.isNotEmpty() || internalStateMessages.isNotEmpty()
 

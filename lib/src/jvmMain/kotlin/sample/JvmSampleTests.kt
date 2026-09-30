@@ -452,7 +452,7 @@ fun testInternalStateMethodsCanOnlyMutateOwnState() {
     var externalVar = 0
     fun externalMutatingFunction() { externalVar += 1 }
 
-    @InternalState
+    @ModifiesInternalStateOnly
     class Good {
         var x = 0
         fun assignX(value: Int) { x = value } // mutating own field - fine
@@ -469,7 +469,7 @@ fun testInternalStateMethodsCanOnlyMutateOwnState() {
         }
     }
 
-    @InternalState
+    @ModifiesInternalStateOnly
     class BadCall {
         var x = 0
         @TestExpectCompileError
@@ -479,7 +479,7 @@ fun testInternalStateMethodsCanOnlyMutateOwnState() {
         }
     }
 
-    @InternalState
+    @ModifiesInternalStateOnly
     class BadSet {
         var x = 0
         @TestExpectCompileError
@@ -488,7 +488,7 @@ fun testInternalStateMethodsCanOnlyMutateOwnState() {
         }
     }
 
-    @InternalState
+    @ModifiesInternalStateOnly
     class BadCrossInstanceSet {
         var x = 0
         @TestExpectCompileError
@@ -497,7 +497,7 @@ fun testInternalStateMethodsCanOnlyMutateOwnState() {
         }
     }
 
-    @InternalState
+    @ModifiesInternalStateOnly
     class BadCrossInstanceCall {
         var x = 0
         fun assignX(value: Int) { x = value }
@@ -508,8 +508,33 @@ fun testInternalStateMethodsCanOnlyMutateOwnState() {
     }
 }
 
+fun testModifiesInternalStateOnlyOnFunctionDirectly() {
+    // The annotation can now be placed on a specific function, without needing to mark the whole class
+    class PartiallyRestricted {
+        var x = 0
+        var y = 0
+
+        @ModifiesInternalStateOnly
+        fun setXOnly(value: Int) { x = value } // fine - mutating own field
+
+        // Not annotated - free to do whatever it wants, e.g. this would be fine even though
+        // it wouldn't be allowed if this function were itself @ModifiesInternalStateOnly
+        fun setYFreely(value: Int) { y = value }
+    }
+
+    var externalVar = 0
+
+    class BadFunctionLevel {
+        var x = 0
+        @ModifiesInternalStateOnly @TestExpectCompileError
+        fun setXFromExternal() {
+            externalVar = 1 // NOT allowed - not local, not own field
+        }
+    }
+}
+
 fun testPlusEqualsSet(){
-    @InternalState class Internal(var a:Int)
+    @ModifiesInternalStateOnly class Internal(var a:Int)
     
     @Pure
     fun testCanPlusSetInternal(){

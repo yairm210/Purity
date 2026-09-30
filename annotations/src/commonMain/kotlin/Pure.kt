@@ -7,7 +7,7 @@ import kotlin.annotation.AnnotationTarget.FUNCTION
  * This means that it does not have any side effects and its output depends only on its input.
  * Functions which read from mutable state are not pure.
  *
- * The equivalent of this for external functions is WellKnownPureFunctions - see https://yairm210.github.io/Purity/usage/configuration/#handling-external-classes
+ * The equivalent of this for external functions/classes is WellKnownPureFunctions/WellKnownPureClasses - see https://yairm210.github.io/Purity/usage/configuration/#handling-external-classes
  *
  * Validated on compilation
  */

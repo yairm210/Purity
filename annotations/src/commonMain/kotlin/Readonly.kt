@@ -8,8 +8,8 @@ import kotlin.annotation.AnnotationTarget.VALUE_PARAMETER
  * This means that it does not alter state.
  * Functions which *read* from mutable state can be readonly, but functions which *write* to state are not.
  * 
- * The equivalent of this for external functions is WellKnownReadonlyFunctions - see https://yairm210.github.io/Purity/usage/configuration/#handling-external-classes
- * 
+ * The equivalent of this for external functions/classes is WellKnownReadonlyFunctions/WellKnownReadonlyClasses - see https://yairm210.github.io/Purity/usage/configuration/#handling-external-classes
+ *
  * Validated on compilation
  */
 @Target(FUNCTION, VALUE_PARAMETER, AnnotationTarget.PROPERTY_GETTER) public annotation class Readonly

@@ -58,7 +58,8 @@ internal fun unwrapSafeCall(expression: IrExpression): IrExpression {
 /** Is [irClass] marked as InternalState - directly, or via well-known FQN (built-in or user config). */
 internal fun isInternalStateClass(irClass: IrClass?, purityConfig: PurityConfig): Boolean {
     if (irClass == null) return false
-    if (irClass.hasAnnotation(Annotations.InternalState)) return true
+    if (irClass.hasAnnotation(Annotations.ModifiesInternalStateOnly)) return true
+    if (irClass.hasAnnotation(Annotations.InternalState)) return true // Deprecated - see ModifiesInternalStateOnly
     val fullyQualifiedClassName = irClass.fqNameForIrSerialization.asString()
     if (fullyQualifiedClassName in wellKnownInternalStateClasses) return true
     if (fullyQualifiedClassName in purityConfig.wellKnownInternalStateClassesFromUser) return true

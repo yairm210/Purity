@@ -3,15 +3,15 @@ package yairm210.purity.annotations
 import kotlin.annotation.AnnotationTarget.FUNCTION
 
 /**
- * An annotation to indicate that this function always returns a newly allocated instance, making it inaccessible from anywhere else.
+ * An annotation to indicate that this function always returns a newly allocated instance, not
+ * aliased/shared with its inputs or with external state.
  *
- * This means that if the return type is InternalState, the resulting value is guaranteed to be
- * LocalState, just like for constructors.
- * This is unnecessary for immutable classes, or for functions known to be pure -
- * they must by definition return a new instance, or they wouldn't be able to return consistent results.
+ * This means that if the return type is @ModifiesInternalStateOnly, the resulting value is
+ * guaranteed to be LocalState, just like for constructors.
+ * This is unnecessary for immutable classes, since they can't be mutated regardless.
  *
- * The equivalent of this for external functions is WellKnownNewInstanceFunctions - see https://yairm210.github.io/Purity/usage/configuration/#handling-external-classes
- * 
+ * The equivalent of this for external functions/classes is WellKnownNewInstanceFunctions/WellKnownNewInstanceClasses - see https://yairm210.github.io/Purity/usage/configuration/#handling-external-classes
+ *
  * Validated on compilation
  */
 @Target(FUNCTION) public annotation class ReturnsNewInstance

@@ -24,6 +24,8 @@ open class PurityConfiguration {
     var wellKnownInternalStateClasses = setOf<String>()
     /** Fully-qualified names of functions that always return a newly allocated instance */
     var wellKnownNewInstanceFunctions = setOf<String>()
+    /** Fully-qualified names of functions that only mutate state they own */
+    var wellKnownModifiesInternalStateOnlyFunctions = setOf<String>()
 }
 
 @Suppress("unused")
@@ -50,6 +52,7 @@ class PurityGradlePlugin : KotlinCompilerPluginSupportPlugin {
                 SubpluginOption("wellKnownReadonlyFunctions", gradleExtension.wellKnownReadonlyFunctions.joinToString("_")),
                 SubpluginOption("wellKnownInternalStateClasses", gradleExtension.wellKnownInternalStateClasses.joinToString("_")),
                 SubpluginOption("wellKnownNewInstanceFunctions", gradleExtension.wellKnownNewInstanceFunctions.joinToString("_")),
+                SubpluginOption("wellKnownModifiesInternalStateOnlyFunctions", gradleExtension.wellKnownModifiesInternalStateOnlyFunctions.joinToString("_")),
             )
             options
         }
