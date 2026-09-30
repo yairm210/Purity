@@ -299,6 +299,32 @@ class CheckFunctionPurityVisitor(
                         " - If $className does not modify any external state (only internal), AND "
                     }
                     message += "this instance is inaccessible by other places in the code, you can annotate ${symbolOwner.name} as @LocalState - see https://yairm210.github.io/Purity/usage/advanced-usage/#local-state-variables \n"
+
+                    // If the val's value came from a function call, marking that function as @ReturnsNewInstance
+                    // achieves the same result without needing @LocalState at every call site
+                    val initializer = symbolOwner.initializer
+                    if (initializer is IrCall) {
+                        val calledFunction = initializer.symbol.owner
+                        val calledFunctionFqName = calledFunction.fqNameForIrSerialization.asString()
+
+                        val annotationSuggestion = " - You can annotate \"$calledFunctionFqName\" as @ReturnsNewInstance - " +
+                                "see https://yairm210.github.io/Purity/usage/advanced-usage/#marking-functions-as-returning-a-new-instance \n"
+                        val fqnSuggestion = " - Alternatively, if \"$calledFunctionFqName\" always returns a freshly allocated instance " +
+                                "not aliased elsewhere, you can add \"$calledFunctionFqName\" to wellKnownNewInstanceFunctions via the PurityConfiguration in gradle - " +
+                                "see https://yairm210.github.io/Purity/usage/advanced-usage/#marking-functions-as-returning-a-new-instance \n"
+
+                        // A function has an accessible body only if it's part of the current compilation - external/stdlib
+                        // functions (e.g. kotlin.text.split) are deserialized without one, so we can't annotate or validate them
+                        val isCompilationAvailable = calledFunction.body != null
+                        if (!isCompilationAvailable) {
+                            message += fqnSuggestion
+                        } else if (FunctionAnnotations.ReturnsNewInstance.validate(calledFunction, purityConfig, MessageCollector.NONE).isEmpty()) {
+                            // The function's body genuinely satisfies the rule - annotating it is the clean fix, suggest it first
+                            message += annotationSuggestion
+                        }
+                        // The function's body does not currently satisfy the rule - annotating it would just cause a
+                        // new compile error, offer nothing
+                    }
                 }
             }
         }
