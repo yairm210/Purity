@@ -20,10 +20,7 @@ jobs:
       with:
         java-version: '25'
         distribution: 'zulu'
-        
-    - name: Build with Gradle
-      run: ./gradlew clean build
-      
+
     - name: Ensure tag is equal to all version strings
       run: |
         TAG=$(echo $GITHUB_REF | sed 's/refs\/tags\///')
@@ -53,6 +50,9 @@ jobs:
           exit 1
         fi
 
+    - name: Build with Gradle
+      run: ./gradlew clean build
+      
     - name: Publish annotations
       env:
         ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.ORG_GRADLE_PROJECT_MAVENCENTRALUSERNAME }}
