@@ -79,12 +79,16 @@ internal class PurityElementTransformer(
         val visitor = CheckFunctionPurityVisitor(declaration, functionDeclaredPurity, messageCollector, purityConfig)
         declaration.accept(visitor, Unit)
 
+        // @ReturnsNewInstance is orthogonal to Pure/Readonly/None, so it's validated independently
+        val returnsNewInstanceMessages = FunctionAnnotations.ReturnsNewInstance.validate(declaration, purityConfig, messageCollector)
+        val hasErrored = visitor.hasErrored || returnsNewInstanceMessages.isNotEmpty()
+
         val actualPurity = visitor.actualFunctionPurity()
 
         if (visitor.hasExpectCompileErrorAnnotation) { // opposite land - fail is success, success is fail
             // We use hasErrored and not function purity, because there are other kinds of exceptions
             // For example, passing a non-readonly variable to a @Readonly parameter doesn't violate purity, but it is an error!
-            if (!visitor.hasErrored) 
+            if (!hasErrored)
                 messageCollector.report(
                     CompilerMessageSeverity.ERROR,
                     "Function \"${declaration.name}\" should fail on purity checks, but succeeds!",

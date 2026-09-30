@@ -18,7 +18,6 @@ import org.jetbrains.kotlin.ir.visitors.IrVisitor
 import org.jetbrains.kotlin.name.FqName
 import yairm210.purity.PurityConfig
 import yairm210.purity.validation.wellknown.wellKnownInternalStateClasses
-import yairm210.purity.validation.wellknown.wellKnownNewInstanceFunctions
 import yairm210.purity.validation.wellknown.wellKnownPureClasses
 
 
@@ -65,10 +64,11 @@ class CheckFunctionPurityVisitor(
     private var isReadonly = true
     private var isPure = true
     var hasErrored = false
+    val reportedMessages = mutableListOf<String>()
 
     val hasExpectCompileErrorAnnotation = function.hasAnnotation(Annotations.TestExpectCompileError)
     private val errorSeverity = if (hasExpectCompileErrorAnnotation) CompilerMessageSeverity.WARNING else CompilerMessageSeverity.ERROR
-    
+
     fun actualFunctionPurity(): FunctionPurity {
         return when {
             isPure -> FunctionPurity.Pure
@@ -76,7 +76,7 @@ class CheckFunctionPurityVisitor(
             else -> FunctionPurity.None
         }
     }
-    
+
     private fun report(message: String, element: IrElement) {
         messageCollector.report(
             errorSeverity,
@@ -84,6 +84,7 @@ class CheckFunctionPurityVisitor(
             location = getLocationForExpression(function, element)
         )
         hasErrored = true
+        reportedMessages.add(message)
     }
     
     private fun varCreatedInFunction(varValueDeclaration: IrValueDeclaration): Boolean {
@@ -127,7 +128,6 @@ class CheckFunctionPurityVisitor(
     }
     
     private val localStateVariables = HashSet<IrVariable>()
-    private val newInstanceVariables = HashSet<IrVariable>()
     private val checkedLambdaFunctions = HashSet<IrFunction>()
     override fun visitVariable(declaration: IrVariable, data: Unit) {
         val initializer = declaration.initializer
@@ -143,69 +143,15 @@ class CheckFunctionPurityVisitor(
         // Thus, it is safe to consider this as a LocalState variable
         if (!declaration.isVar && initializer is IrCall
                     && isInternalStateClass(initializer.type.getClass())
-                    && ExpectedFunctionPurityChecker.returnsNewInstance(initializer.symbol.owner, purityConfig)
+                    && FunctionAnnotations.ReturnsNewInstance.isExplicitlyMarked(initializer.symbol.owner, purityConfig)
         ) {
             localStateVariables.add(declaration)
-        }
-
-        // Track vals assigned directly from a constructor call or a call to a @ReturnsNewInstance function,
-        // so that a @ReturnsNewInstance function may assign locally and return the val, not just return the call directly
-        if (!declaration.isVar) {
-            if (initializer is IrConstructorCall) newInstanceVariables.add(declaration)
-            if (initializer is IrCall && ExpectedFunctionPurityChecker.returnsNewInstance(initializer.symbol.owner, purityConfig)) {
-                newInstanceVariables.add(declaration)
-            }
         }
 
         // If this specific statement is suppressed, skip purity checking of the initializer
         if (declaration.suppressesPurity()) return
 
         return super.visitVariable(declaration, data)
-    }
-
-    // True if the function is itself marked/known @ReturnsNewInstance, or overrides a function that is -
-    // in which case it inherits the same obligation, same as override-inheritance for @Pure/@Readonly.
-    // Mirrors ExpectedFunctionPurityChecker.returnsNewInstance()'s override-matching, so that a function
-    // trusted by callers via the FQN config (built-in or user) also has its own body validated.
-    private fun isExpectedToReturnNewInstance(function: IrFunction): Boolean {
-        if (function.hasAnnotation(Annotations.ReturnsNewInstance)) return true
-
-        val fullyQualifiedFunctionName = function.fqNameForIrSerialization.asString()
-        if (fullyQualifiedFunctionName in wellKnownNewInstanceFunctions) return true
-        if (fullyQualifiedFunctionName in purityConfig.wellKnownNewInstanceFunctionsFromUser) return true
-
-        if (function is IrSimpleFunction) {
-            for (overriddenFunction in getAllOverriddenFunctions(function)) {
-                if (overriddenFunction.hasAnnotation(Annotations.ReturnsNewInstance)) return true
-                val overriddenFunctionName = overriddenFunction.fqNameForIrSerialization.asString()
-                if (overriddenFunctionName in wellKnownNewInstanceFunctions) return true
-                if (overriddenFunctionName in purityConfig.wellKnownNewInstanceFunctionsFromUser) return true
-            }
-        }
-        return false
-    }
-
-    // A @ReturnsNewInstance function must only return: a constructor call, a call to another @ReturnsNewInstance
-    // function, or a local val that was itself assigned from one of those (tracked via newInstanceVariables)
-    override fun visitReturn(expression: IrReturn, data: Unit) {
-        if (isExpectedToReturnNewInstance(function) && expression.returnTargetSymbol == function.symbol) {
-            val value = expression.value
-            val isNewInstance = when (value) {
-                is IrConstructorCall -> true
-                is IrCall -> ExpectedFunctionPurityChecker.returnsNewInstance(value.symbol.owner, purityConfig)
-                is IrGetValue -> value.symbol.owner.let { it is IrVariable && it in newInstanceVariables }
-                else -> false
-            }
-            if (!isNewInstance) {
-                report(
-                    "Function \"${function.name}\" is marked as (or overrides a function marked as) @ReturnsNewInstance " +
-                        "but returns a value that is not a constructor call, a call to another @ReturnsNewInstance function, " +
-                        "or a local val assigned from one of those.\n",
-                    expression
-                )
-            }
-        }
-        super.visitReturn(expression, data)
     }
 
     override fun visitGetValue(expression: IrGetValue, data: Unit) {
@@ -480,15 +426,14 @@ class CheckFunctionPurityVisitor(
         // and produce duplicate (and less specific) error messages.
         checkedLambdaFunctions.add(parameterExpression.function)
 
-        val visitor = CheckFunctionPurityVisitor(
-            function = parameterExpression.function,
-            declaredFunctionPurity = parameterPurity,
-            messageCollector = messageCollector,
-            purityConfig = purityConfig,
-        )
-
         // If there are problems, this will raise them as-is
-        parameterExpression.function.accept(visitor, Unit)
+        functionAnnotationFor(parameterPurity).validate(parameterExpression.function, purityConfig, messageCollector)
+    }
+
+    private fun functionAnnotationFor(purity: FunctionPurity) = when (purity) {
+        FunctionPurity.Pure -> FunctionAnnotations.Pure
+        FunctionPurity.Readonly -> FunctionAnnotations.Readonly
+        FunctionPurity.None -> throw IllegalArgumentException("FunctionPurity.None has no corresponding FunctionAnnotations entry")
     }
 
     /** For expressions of type 'function'
@@ -553,16 +498,9 @@ class CheckFunctionPurityVisitor(
             if (defaultExpression is IrFunctionExpression) { // lambda expression
                 // If this functions is already on the parameter purity level or higher, we already check it satisfies the required purity - no-op
                 if (declaredFunctionPurity >= parameterPurity) return
-                
-                val visitor = CheckFunctionPurityVisitor(
-                    function = defaultExpression.function,
-                    declaredFunctionPurity = parameterPurity,
-                    messageCollector = messageCollector,
-                    purityConfig = purityConfig,
-                )
 
                 // If there are problems, this will raise them as-is
-                defaultExpression.function.accept(visitor, Unit)
+                functionAnnotationFor(parameterPurity).validate(defaultExpression.function, purityConfig, messageCollector)
                 continue
             }
             
