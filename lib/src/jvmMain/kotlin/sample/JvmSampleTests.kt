@@ -467,6 +467,13 @@ fun testInternalStateMethodsCanOnlyMutateOwnState() {
             local += 1 // mutating a local - fine
             x = local
         }
+
+        fun clone(): Good {
+            val new = Good() // freshly constructed, unaliased - safe to mutate
+            new.x = this.x
+            new.assignX(this.x + 1)
+            return new
+        }
     }
 
     @ModifiesInternalStateOnly

@@ -1,7 +1,6 @@
 @file:OptIn(UnsafeDuringIrConstructionAPI::class)
 package yairm210.purity.validation
 
-import org.jetbrains.kotlin.DeprecatedForRemovalCompilerApi
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageLocation
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
@@ -64,6 +63,40 @@ internal fun isInternalStateClass(irClass: IrClass?, purityConfig: PurityConfig)
     if (fullyQualifiedClassName in wellKnownInternalStateClasses) return true
     if (fullyQualifiedClassName in purityConfig.wellKnownInternalStateClassesFromUser) return true
     return false
+}
+
+/** Tracks local vals that are guaranteed to hold a freshly-allocated, unaliased instance - either a
+ * direct constructor call, or a call to a function known to return a new instance (@ReturnsNewInstance,
+ * or well-known e.g. toMutableList()). Feed every [IrVariable] in scope to [visitVariable], then use
+ * [isOwned]/[contains] to check whether an expression/variable refers to one of the tracked instances.
+ *
+ * If [requireInternalStateClass] is set, only instances whose type is itself a well-known/annotated
+ * internal-state class are tracked - used where the mutation-rights grant should be limited to such
+ * (e.g. @Mutated parameter passing under @Pure/@Readonly). Otherwise, any freshly-owned instance counts,
+ * regardless of its type (e.g. @ModifiesInternalStateOnly's clone-and-mutate pattern, or @ReturnsNewInstance's
+ * "local val assigned from a constructor/another @ReturnsNewInstance call" rule). */
+internal class OwnedInstanceVariableTracker(
+    private val purityConfig: PurityConfig,
+    private val requireInternalStateClass: Boolean = false,
+) {
+    private val trackedVariables = HashSet<IrVariable>()
+
+    fun visitVariable(declaration: IrVariable) {
+        if (declaration.isVar) return
+        // Unwrap safe calls (a?.b()) so e.g. `val x = a?.returnsNewInstanceFun()` is seen through
+        val initializer = declaration.initializer?.let { unwrapSafeCall(it) } ?: return
+        if (requireInternalStateClass && !isInternalStateClass(initializer.type.getClass(), purityConfig)) return
+
+        if (initializer is IrConstructorCall) trackedVariables.add(declaration)
+        if (initializer is IrCall && FunctionAnnotations.ReturnsNewInstance.isExplicitlyMarked(initializer.symbol.owner, purityConfig)) {
+            trackedVariables.add(declaration)
+        }
+    }
+
+    fun isOwned(expression: IrExpression?): Boolean =
+        expression is IrGetValue && contains(expression.symbol.owner)
+
+    fun contains(variable: IrValueDeclaration): Boolean = variable is IrVariable && variable in trackedVariables
 }
 
 internal fun IrAnnotationContainer.suppressesPurity(): Boolean {
@@ -146,31 +179,12 @@ class CheckFunctionPurityVisitor(
         super.visitSetValue(expression, data)
     }
     
-    private fun isInternalStateClass(irClass: IrClass?): Boolean = isInternalStateClass(irClass, purityConfig)
-
-
-    private val localStateVariables = HashSet<IrVariable>()
+    // Vals initialized with a freshly-allocated, unaliased instance of a well-known internal state
+    // class - the same as manually adding @LocalState
+    private val localStateVariables = OwnedInstanceVariableTracker(purityConfig, requireInternalStateClass = true)
     private val checkedLambdaFunctions = HashSet<IrFunction>()
     override fun visitVariable(declaration: IrVariable, data: Unit) {
-        // Unwrap safe calls (a?.b()) so e.g. `val x = ruleset.eras[era]?.getStartingUnits()` sees
-        // through the null-check wrapper down to the actual IrCall/IrConstructorCall
-        val initializer = declaration.initializer?.let { unwrapSafeCall(it) }
-        // If we're initializing a val with a constructor call to a well-known internal state class, it's the same as manually adding @LocalState
-        if (!declaration.isVar && initializer is IrConstructorCall
-                && isInternalStateClass(initializer.type.getClass())) {
-            localStateVariables.add(declaration)
-        }
-
-        // If we're calling a function known to return a freshly allocated instance (marked @ReturnsNewInstance,
-        // or well-known e.g. toMutableList()), the instance is guaranteed to not be aliased by anyone else.
-        // If in addition to that, the type is a well-known internal state class, then it's state that we may modify only
-        // Thus, it is safe to consider this as a LocalState variable
-        if (!declaration.isVar && initializer is IrCall
-                    && isInternalStateClass(initializer.type.getClass())
-                    && FunctionAnnotations.ReturnsNewInstance.isExplicitlyMarked(initializer.symbol.owner, purityConfig)
-        ) {
-            localStateVariables.add(declaration)
-        }
+        localStateVariables.visitVariable(declaration)
 
         // If this specific statement is suppressed, skip purity checking of the initializer
         if (declaration.suppressesPurity()) return
@@ -370,7 +384,7 @@ class CheckFunctionPurityVisitor(
         if (fqName != null && (fqName in wellKnownPureClasses || fqName in purityConfig.wellKnownPureClassesFromUser)) return true
 
         // Instances that we have mutation rights on
-        if (expression is IrGetValue && expression.symbol.owner in localStateVariables) return true
+        if (localStateVariables.isOwned(expression)) return true
         if (representsAnnotationBearer(expression, Annotations.LocalState)) return true
         if (representsAnnotationBearer(expression, Annotations.Mutated)) return true
         if (representsAnnotationBearer(expression, Annotations.Cache)) return true
@@ -382,7 +396,7 @@ class CheckFunctionPurityVisitor(
                 val initializer = symbolOwner.initializer
                 if (initializer is IrGetValue) {
                     val initializerOwner = initializer.symbol.owner
-                    if (initializerOwner in localStateVariables) return true
+                    if (localStateVariables.contains(initializerOwner)) return true
                     if (initializerOwner.hasAnnotation(Annotations.LocalState)) return true
                 }
             }
