@@ -504,6 +504,26 @@ fun testReturnsNewInstanceValidation(){
     // Returning an input parameter is NOT a new instance
     @ReturnsNewInstance @TestExpectCompileError
     fun returnsParameterNotNewInstance(list: ArrayList<Int>): ArrayList<Int> = list
+
+    // emptyList/emptySet/emptyMap are well-known new-instance functions - even though they return a
+    // shared singleton, their static type is read-only so no caller can mutate through it anyway
+    @ReturnsNewInstance
+    fun makeEmptyList(): List<Int> = emptyList()
+
+    // Returning a call to an external stdlib function that is NOT well-known (no accessible body
+    // either) - the error should suggest the FQN config route, since there's no body to check or annotate
+    @ReturnsNewInstance @TestExpectCompileError
+    fun returnsSharedJavaSingletonNotNewInstance(): List<Int> {
+        if (true) return java.util.Collections.emptyList()
+        return ArrayList()
+    }
+
+    // Returning a call to a local, unannotated function whose body genuinely satisfies the rule -
+    // the error should suggest annotating that function directly, as the first/preferred option
+    fun makeListDirectUnannotated(): ArrayList<Int> = ArrayList()
+
+    @ReturnsNewInstance @TestExpectCompileError
+    fun delegatesToUnannotatedFunction(): ArrayList<Int> = makeListDirectUnannotated()
 }
 
 fun testReturnsNewInstanceThroughSafeCall() {

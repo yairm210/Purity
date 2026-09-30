@@ -11,7 +11,6 @@ package yairm210.purity.validation.wellknown
 
 val wellKnownNewInstanceFunctions = setOf(
     // Collection builder functions - always allocate a fresh instance.
-    // Note: emptyList/emptySet/emptyMap are intentionally excluded - they return a shared singleton.
     "kotlin.collections.mutableListOf",
     "kotlin.collections.mutableSetOf",
     "kotlin.collections.mutableMapOf",
@@ -22,6 +21,13 @@ val wellKnownNewInstanceFunctions = setOf(
     "kotlin.collections.hashSetOf",
     "kotlin.collections.hashMapOf",
     "kotlin.collections.linkedMapOf",
+
+    // These return a shared singleton, not a fresh instance - but their static type is the
+    // read-only (immutable) collection interface, so no caller can ever mutate through it anyway.
+    // Practically indistinguishable from a fresh instance for purity purposes.
+    "kotlin.collections.emptyList",
+    "kotlin.collections.emptySet",
+    "kotlin.collections.emptyMap",
 
     "kotlin.collections.distinct",
     "kotlin.collections.distinctBy",

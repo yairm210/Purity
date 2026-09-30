@@ -98,6 +98,29 @@ enum class FunctionAnnotations(
     abstract fun validate(function: IrFunction, purityConfig: PurityConfig, messageCollector: MessageCollector): List<String>
 }
 
+/** Builds a suggestion for how to make [calledFunction] recognized as always returning a new instance -
+ * annotating it directly if it's part of this compilation and its body already satisfies the rule
+ * (checked hypothetically, regardless of whether it's currently annotated/well-known), or declaring
+ * it via the FQN config otherwise. Returns null if the function is part of this compilation but its
+ * body demonstrably does NOT satisfy the rule - annotating it would just cause a new compile error,
+ * and asserting it via the FQN config would be asserting something false, so no suggestion is safe. */
+fun suggestReturnsNewInstanceFix(calledFunction: IrFunction, purityConfig: PurityConfig): String? {
+    val calledFunctionFqName = calledFunction.fqNameForIrSerialization.asString()
+    // A function has an accessible body only if it's part of the current compilation - external/stdlib
+    // functions (e.g. kotlin.text.split) are deserialized without one, so we can't annotate or validate them
+    val isCompilationAvailable = calledFunction.body != null
+    return when {
+        !isCompilationAvailable ->
+            " - If \"$calledFunctionFqName\" always returns a freshly allocated instance not aliased elsewhere, " +
+                "you can add \"$calledFunctionFqName\" to wellKnownNewInstanceFunctions via the PurityConfiguration in gradle - " +
+                "see https://yairm210.github.io/Purity/usage/advanced-usage/#marking-functions-as-returning-a-new-instance \n"
+        checkReturnsNewInstanceBody(calledFunction, purityConfig).isEmpty() ->
+            " - You can annotate \"$calledFunctionFqName\" as @ReturnsNewInstance - " +
+                "see https://yairm210.github.io/Purity/usage/advanced-usage/#marking-functions-as-returning-a-new-instance \n"
+        else -> null
+    }
+}
+
 /** A @ReturnsNewInstance function (or override of one) must only return: a constructor call, a call to
  * another @ReturnsNewInstance function, or a local val that was itself assigned from one of those. */
 private fun validateReturnsNewInstance(
@@ -108,8 +131,24 @@ private fun validateReturnsNewInstance(
     if (!FunctionAnnotations.ReturnsNewInstance.isExplicitlyMarked(function, purityConfig)) return emptyList()
 
     val errorSeverity = if (function.hasAnnotation(Annotations.TestExpectCompileError)) CompilerMessageSeverity.WARNING else CompilerMessageSeverity.ERROR
-    val newInstanceVariables = HashSet<IrVariable>()
     val messages = mutableListOf<String>()
+
+    for ((message, element) in checkReturnsNewInstanceBody(function, purityConfig)) {
+        messageCollector.report(errorSeverity, message, getLocationForExpression(function, element))
+        messages.add(message)
+    }
+    return messages
+}
+
+/** Checks [function]'s body against the @ReturnsNewInstance rule, regardless of whether it is
+ * currently marked/known as such - i.e. "would this pass if annotated?". Returns one
+ * (message, offending IrReturn) pair per violation. */
+private fun checkReturnsNewInstanceBody(
+    function: IrFunction,
+    purityConfig: PurityConfig,
+): List<Pair<String, IrElement>> {
+    val newInstanceVariables = HashSet<IrVariable>()
+    val violations = mutableListOf<Pair<String, IrElement>>()
 
     val visitor = object : IrVisitor<Unit, Unit>() {
         override fun visitVariable(declaration: IrVariable, data: Unit) {
@@ -134,11 +173,17 @@ private fun validateReturnsNewInstance(
                     else -> false
                 }
                 if (!isNewInstance) {
-                    val message = "Function \"${function.name}\" is marked as (or overrides a function marked as) @ReturnsNewInstance " +
+                    var message = "Function \"${function.name}\" is marked as (or overrides a function marked as) @ReturnsNewInstance " +
                         "but returns a value that is not a constructor call, a call to another @ReturnsNewInstance function, " +
                         "or a local val assigned from one of those.\n"
-                    messageCollector.report(errorSeverity, message, getLocationForExpression(function, expression))
-                    messages.add(message)
+
+                    // If the returned value is itself a function call, suggest how to make that function
+                    // recognized as returning a new instance too, so it can be used here directly
+                    if (value is IrCall) {
+                        suggestReturnsNewInstanceFix(value.symbol.owner, purityConfig)?.let { message += it }
+                    }
+
+                    violations.add(message to expression)
                 }
             }
             super.visitReturn(expression, data)
@@ -149,5 +194,5 @@ private fun validateReturnsNewInstance(
         }
     }
     function.accept(visitor, Unit)
-    return messages
+    return violations
 }
