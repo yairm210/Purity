@@ -8,5 +8,7 @@ import kotlin.annotation.AnnotationTarget.FUNCTION
  * Functions which read from mutable state are not pure.
  *
  * The equivalent of this for external functions is WellKnownPureFunctions - see https://yairm210.github.io/Purity/usage/configuration/#handling-external-classes
+ *
+ * Validated on compilation
  */
 @Target(FUNCTION, AnnotationTarget.VALUE_PARAMETER) public annotation class Pure

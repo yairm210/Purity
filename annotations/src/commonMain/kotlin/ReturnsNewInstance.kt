@@ -11,5 +11,7 @@ import kotlin.annotation.AnnotationTarget.FUNCTION
  * they must by definition return a new instance, or they wouldn't be able to return consistent results.
  *
  * The equivalent of this for external functions is WellKnownNewInstanceFunctions - see https://yairm210.github.io/Purity/usage/configuration/#handling-external-classes
+ * 
+ * Validated on compilation
  */
 @Target(FUNCTION) public annotation class ReturnsNewInstance

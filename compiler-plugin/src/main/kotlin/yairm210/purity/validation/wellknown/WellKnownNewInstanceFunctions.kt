@@ -25,7 +25,6 @@ val wellKnownNewInstanceFunctions = setOf(
 
     "kotlin.collections.distinct",
     "kotlin.collections.distinctBy",
-    "kotlin.collections.distinctBy",
     "kotlin.collections.drop",
     "kotlin.collections.dropWhile",
     "kotlin.collections.filter",
@@ -35,6 +34,7 @@ val wellKnownNewInstanceFunctions = setOf(
     "kotlin.collections.flatMap",
     "kotlin.collections.flatMapIndexed",
     "kotlin.collections.flatten",
+    "kotlin.text.split",
 ) + getCommonNewInstanceSequenceIterableFunctions().asSequence()
 
 fun getCommonNewInstanceSequenceIterableFunctions(): Set<String> {

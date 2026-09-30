@@ -9,5 +9,7 @@ import kotlin.annotation.AnnotationTarget.VALUE_PARAMETER
  * 
  * This is a *shallow* indicator - it refers to the instance, and not to contained fields and values.
  * e.g. on a list, it means the list is local, but the values contained in the list may be available elsewhere.
+ *
+ * NOT VALIDATED - Trusted as true
  */ 
 @Target(LOCAL_VARIABLE, VALUE_PARAMETER) public annotation class LocalState
