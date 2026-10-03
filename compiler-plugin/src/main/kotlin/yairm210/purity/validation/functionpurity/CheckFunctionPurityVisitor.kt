@@ -8,6 +8,7 @@ import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
 import org.jetbrains.kotlin.ir.types.classFqName
+import org.jetbrains.kotlin.ir.types.getClass
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.ir.visitors.IrVisitor
 import org.jetbrains.kotlin.name.FqName
@@ -17,6 +18,8 @@ import yairm210.purity.validation.FunctionAnnotations
 import yairm210.purity.validation.OwnedInstanceVariableTracker
 import yairm210.purity.validation.functionpurity.wellknown.wellKnownPureClasses
 import yairm210.purity.validation.getLocationForExpression
+import yairm210.purity.validation.isInternalStateClass
+import yairm210.purity.validation.isNewInstanceField
 import yairm210.purity.validation.isTrustedDefaultSetter
 import yairm210.purity.validation.modifiesinternalstate.wellknown.wellKnownInternalStateClasses
 import yairm210.purity.validation.representsAnnotationBearer
@@ -25,28 +28,42 @@ import yairm210.purity.validation.suppressesPurity
 import yairm210.purity.validation.unwrapCompoundAssignmentTemp
 import yairm210.purity.validation.unwrapSafeCall
 
-/** Checks all declarations of a specific function.
- * Warns every time a var is set a value, or an unpure function is called.
- * Vars that are created within the function are OK to set */
+/** Checks all declarations of a specific function against [declaredFunctionPurity]'s read/write
+ * requirements - the single checker used for all three of @Pure, @Readonly, and
+ * @ModifiesInternalStateOnly (passed in as [FunctionPurity.InternalStateMutating]).
+ * Warns every time a var is set a value, or an insufficiently-restricted function is called.
+ * Vars that are created within the function are OK to set. */
 class CheckFunctionPurityVisitor(
     private val function: IrFunction,
     private val declaredFunctionPurity: FunctionPurity,
     private val messageCollector: MessageCollector,
     private val purityConfig: PurityConfig,
     ) : IrVisitor<Unit, Unit>() { // Returns whether this is an acceptable X function
-        
-    private var isReadonly = true
-    private var isPure = true
+
+    // The actual read/write levels this function's body has been observed to need so far - widened
+    // (never narrowed) as violations are found, starting from the most restrictive (None, None).
+    private var mutableStateRead = MutationLevel.None
+    private var mutableStateWrite = MutationLevel.None
     var hasErrored = false
     val reportedMessages = mutableListOf<String>()
 
     val hasExpectCompileErrorAnnotation = function.hasAnnotation(Annotations.TestExpectCompileError)
     private val errorSeverity = if (hasExpectCompileErrorAnnotation) CompilerMessageSeverity.WARNING else CompilerMessageSeverity.ERROR
 
+    private fun widenRead(level: MutationLevel) {
+        if (level > mutableStateRead) mutableStateRead = level
+    }
+
+    private fun widenWrite(level: MutationLevel) {
+        if (level > mutableStateWrite) mutableStateWrite = level
+    }
+
+    /** The strictest [FunctionPurity] whose read/write levels are both wide enough to cover what
+     * this function's body has actually been observed to do. */
     fun actualFunctionPurity(): FunctionPurity {
         return when {
-            isPure -> FunctionPurity.Pure
-            isReadonly -> FunctionPurity.Readonly
+            mutableStateWrite <= MutationLevel.None && mutableStateRead <= MutationLevel.None -> FunctionPurity.Pure
+            mutableStateWrite <= MutationLevel.None -> FunctionPurity.Readonly
             else -> FunctionPurity.None
         }
     }
@@ -60,7 +77,7 @@ class CheckFunctionPurityVisitor(
         hasErrored = true
         reportedMessages.add(message)
     }
-    
+
     private fun varCreatedInFunction(varValueDeclaration: IrValueDeclaration): Boolean {
         // If the variable is created in this function that's ok
         // Contains, because if e.g. we create a sequence{} in a function and define the variable in the sequence, it's the parent
@@ -72,18 +89,17 @@ class CheckFunctionPurityVisitor(
         if (declaredFunctionPurity == FunctionPurity.None){
             return super.visitSetValue(expression, data)
         }
-        
+
         // Not sure if we can assume owner is set at this point :think:
         val varValueDeclaration: IrValueDeclaration = expression.symbol.owner
-        
-        
+
+
         if (varValueDeclaration is IrVariable && varValueDeclaration.isVar
-            && !varCreatedInFunction(varValueDeclaration)) { 
-            isReadonly = false
-            isPure = false
+            && !varCreatedInFunction(varValueDeclaration)) {
+            widenWrite(MutationLevel.Any)
 
             val text = "Function \"${function.name}\" is marked as $declaredFunctionPurity but sets variable \"${varValueDeclaration.name}\"\n"
-            
+
             report(
                 text,
                 expression
@@ -91,13 +107,32 @@ class CheckFunctionPurityVisitor(
         }
         super.visitSetValue(expression, data)
     }
-    
+
+    // A field of `this` (or an owned local instance) is state this instance owns - acceptable for
+    // @ModifiesInternalStateOnly's write:InstanceInternal requirement. @Pure/@Readonly never reach
+    // this (their write requirement is None, stricter than InstanceInternal) - this preserves their
+    // historical behavior of not checking raw field sets at all.
+    override fun visitSetField(expression: IrSetField, data: Unit) {
+        if (declaredFunctionPurity == FunctionPurity.InternalStateMutating) {
+            val receiver = unwrapReceiver(expression.receiver)
+            val isOwnedReceiver = isThis(receiver) || ownedInstances.isOwned(receiver)
+            if (!isOwnedReceiver) {
+                report(
+                    "Function \"${function.name}\" is marked as $declaredFunctionPurity but sets field \"${expression.symbol.owner.name}\" on an object other than this instance or an owned local instance.\n" +
+                        " - @ModifiesInternalStateOnly may only mutate state that it owns.\n",
+                    expression
+                )
+            }
+        }
+        super.visitSetField(expression, data)
+    }
+
     // Vals initialized with a newly-allocated, unaliased instance of a well-known internal state
     // class - the same as manually adding @LocalState
     private val localStateVariables = OwnedInstanceVariableTracker(purityConfig, requireInternalStateClass = true)
 
-    // Same, but with no class restriction - only used to trust default property setter calls (see
-    // isTrustedDefaultSetter below), since those are provably side-effect-free regardless of class
+    // Same, but with no class restriction - used to trust default property setter calls, and (for
+    // @ModifiesInternalStateOnly) any call/field-set on a freshly-owned local instance of any class
     private val ownedInstances = OwnedInstanceVariableTracker(purityConfig)
 
     private val checkedLambdaFunctions = HashSet<IrFunction>()
@@ -113,55 +148,116 @@ class CheckFunctionPurityVisitor(
 
     override fun visitGetValue(expression: IrGetValue, data: Unit) {
         val varValueDeclaration: IrValueDeclaration = expression.symbol.owner
-        
+
         // If the variable is created in this function that's ok
         if (varValueDeclaration is IrVariable && varValueDeclaration.isVar
             && !varCreatedInFunction(varValueDeclaration)) {
-            isPure = false
+            widenRead(MutationLevel.Any)
 
             if (declaredFunctionPurity == FunctionPurity.Pure) {
                 report(
                     "Function \"${function.name}\" is marked as $declaredFunctionPurity but gets variable \"${varValueDeclaration.name}\"",
-                    expression 
+                    expression
                 )
             }
         }
         super.visitGetValue(expression, data)
     }
-    
+
     override fun visitCall(expression: IrCall, data: Unit) {
 
         checkCalledFunctionPurity(expression)
         checkMarkedParameters(expression)
 
-        super.visitCall(expression, data) 
+        super.visitCall(expression, data)
+    }
+
+    // -- @ModifiesInternalStateOnly-specific receiver trust (write:InstanceInternal) --
+    // These grant trust based on WHO the receiver is, regardless of the called function's own
+    // declared purity - unlike every other allowance below, which is about the CALLEE's purity.
+    // Only relevant when declaredFunctionPurity == InternalStateMutating (write:None callers like
+    // @Pure/@Readonly never get an instance-boundary concept - only a local/not-local one).
+
+    private val thisReceiver = function.dispatchReceiverParameter
+    private fun isThis(expression: IrExpression?): Boolean =
+        expression is IrGetValue && expression.symbol.owner == thisReceiver
+
+    /** Smart-casts/`!!` (IrTypeOperatorCall) and `+=`/`*=`-generated temp vals wrap/copy the real
+     * receiver without changing its identity - see through both to the real expression. */
+    private fun unwrapReceiver(receiver: IrExpression?): IrExpression? {
+        val unwrappedOnce = if (receiver is IrTypeOperatorCall) receiver.argument else receiver
+        return unwrapCompoundAssignmentTemp(unwrappedOnce)
+    }
+
+    private fun receiverOfPropertyGetterCall(call: IrCall): IrExpression? {
+        val index = call.symbol.owner.parameters
+            .indexOfFirst { it.kind == IrParameterKind.DispatchReceiver || it.kind == IrParameterKind.ExtensionReceiver }
+        return if (index != -1) call.arguments[index] else null
+    }
+
+    /** The backing field a GetField/property-getter-call expression reads, but ONLY if it's a field
+     * of `this` - null otherwise. */
+    private fun backingFieldOfThis(expression: IrExpression?): IrField? = when (expression) {
+        is IrGetField -> if (isThis(expression.receiver)) expression.symbol.owner else null
+        is IrCall -> if (expression.symbol.owner.isGetter && isThis(receiverOfPropertyGetterCall(expression)))
+            expression.symbol.owner.correspondingPropertySymbol?.owner?.backingField else null
+        else -> null
+    }
+
+    /** A field of `this` instance is itself state this instance owns - but only if A. that field's own
+     * class also guarantees it only mutates its own internal state, and B. the field is a val whose
+     * declared initializer is itself a new (constructor/@ReturnsNewInstance) instance - otherwise the
+     * check could be "whitewashed": declare an internal-state-class val field, but actually assign it
+     * (e.g. via the constructor) a reference some external caller still holds, then mutate it through
+     * a call on the field - defeating the "may only mutate state that it owns" guarantee entirely. */
+    private fun isOwnField(expression: IrExpression?): Boolean {
+        val field = backingFieldOfThis(expression) ?: return false
+        return isInternalStateClass(field.type.getClass(), purityConfig) && isNewInstanceField(field, purityConfig)
+    }
+
+    /** Interface delegation (`class C : Map<K,V> by map`) generates synthetic member functions that
+     * just forward to the delegate field - trusted (without the freshness check above, since a
+     * delegate field is a fixed, single-assignment implementation slot, not an arbitrary owned object)
+     * but ONLY if that delegate's own class also guarantees it only mutates its own internal state. */
+    private fun isTrustedDelegateField(expression: IrExpression?): Boolean {
+        if (function.origin != IrDeclarationOrigin.DELEGATED_MEMBER) return false
+        val field = backingFieldOfThis(expression) ?: return false
+        return isInternalStateClass(field.type.getClass(), purityConfig)
+    }
+
+    /** Is [rawReceiver] trusted under @ModifiesInternalStateOnly's receiver-ownership rules - any
+     * method called on `this`, an owned local instance, a trusted field of `this`, or a delegate field -
+     * regardless of the called function's own declared purity. */
+    private fun isAllowedInternalStateReceiver(rawReceiver: IrExpression?): Boolean {
+        val receiver = unwrapReceiver(rawReceiver)
+        return isThis(receiver) || ownedInstances.isOwned(receiver) || isOwnField(receiver) || isTrustedDelegateField(receiver)
     }
 
     /** Only accept calls to functions marked as pure / readonly */
     private fun checkCalledFunctionPurity(expression: IrCall) {
-        
+
         val calledFunction = expression.symbol.owner
-        
+
         // This is a subfunction of the current function, so it's already checked
         if (function in calledFunction.parents) return
-        
+
         val extensionOrDispatchReceiverParameter = calledFunction.parameters
             // Dispatch means "A.B() is defined in class A", Extention means it's an extention function defined elsewhere
             .indexOfFirst { it.kind == IrParameterKind.DispatchReceiver || it.kind == IrParameterKind.ExtensionReceiver }
         /** The instance the function is called on: For example for A.B(), the receiver is A */
-        val receiver = if (extensionOrDispatchReceiverParameter != -1) 
+        val receiver = if (extensionOrDispatchReceiverParameter != -1)
             expression.arguments[extensionOrDispatchReceiverParameter]
         else null // e.g. a top-level function
-        
+
         fun receiverHasAnnotation(annotation: FqName): Boolean =
             receiver?.let { representsAnnotationBearer(it, annotation) } == true
-        
+
         fun isWellKnownPureClass(fqName: FqName?): Boolean {
             if (fqName == null) return false
             val fqString = fqName.asString()
             return fqString in wellKnownPureClasses || fqString in purityConfig.wellKnownPureClassesFromUser
         }
-        
+
         fun isImmutableReceiver(): Boolean {
             if (receiver == null) return false
             if (isWellKnownPureClass(receiver.type.classFqName)) return true
@@ -174,9 +270,9 @@ class CheckFunctionPurityVisitor(
             }
             return false
         }
-        
-        
-        
+
+
+
         fun receiverIsMutatable(): Boolean {
             if (receiver == null) return false
             return isMutatable(receiver)
@@ -212,10 +308,15 @@ class CheckFunctionPurityVisitor(
         }
 
 
-        if (calledFunctionPurity < FunctionPurity.Pure) isPure = false
-        if (calledFunctionPurity < FunctionPurity.Readonly) isReadonly = false
+        widenRead(calledFunctionPurity.mutableStateRead)
+        widenWrite(calledFunctionPurity.mutableStateWrite)
 
-        if (declaredFunctionPurity > calledFunctionPurity) {
+        val allowed = canCall(declaredFunctionPurity, calledFunctionPurity)
+                // @ModifiesInternalStateOnly also trusts calls based on WHO the receiver is,
+                // regardless of the callee's own declared purity - see isAllowedInternalStateReceiver
+                || (declaredFunctionPurity == FunctionPurity.InternalStateMutating && isAllowedInternalStateReceiver(receiver))
+
+        if (!allowed) {
             reportUnacceptableFunctionCall(expression, calledFunction, calledFunctionPurity, receiver)
         }
     }
@@ -240,7 +341,7 @@ class CheckFunctionPurityVisitor(
 
         // Check if relevant to declare it @Immutable
         if (declaredFunctionPurity == FunctionPurity.Pure && calledFunctionPurity == FunctionPurity.Readonly) {
-            if (receiver is IrCall && receiver.symbol.owner.isGetter) // property getter 
+            if (receiver is IrCall && receiver.symbol.owner.isGetter) // property getter
                 message += " - Since the function called is @Readonly, you can annotate \"${receiver.symbol.owner.correspondingPropertySymbol!!.owner.name}\" as @Immutable so the call will be considered @Pure - see https://yairm210.github.io/Purity/usage/advanced-usage/#marking-variables-as-immutable \n"
             if (receiver is IrGetValue) // local variable
                 message += " - Since the function called is @Readonly, you can annotate \"${receiver.symbol.owner.name}\" as @Immutable so the call will be considered @Pure - see https://yairm210.github.io/Purity/usage/advanced-usage/#marking-variables-as-immutable \n"
@@ -329,14 +430,14 @@ class CheckFunctionPurityVisitor(
                 else -> FunctionPurity.None
             }
             if (parameterPurity == FunctionPurity.None) continue
-            
+
             if (parameterExpression is IrFunctionExpression) { // lambda expression
                 raisePassedLambdaErrors(parameterPurity, parameterExpression)
                 continue
             }
 
             val actualExpressionPurity: FunctionPurity? = getExpressionPurity(parameterExpression)
-            
+
             if (actualExpressionPurity == null) {
                 report(
                     "Function \"${function.name}\" calls \"${calledFunction.fqNameForIrSerialization}\" " +
@@ -345,8 +446,8 @@ class CheckFunctionPurityVisitor(
                 )
                 continue
             }
-            
-            if (actualExpressionPurity < parameterPurity) {
+
+            if (!canCall(parameterPurity, actualExpressionPurity)) {
                 val message =  "Function \"${function.name}\" calls \"${calledFunction.fqNameForIrSerialization}\" " +
                         "with parameter \"${parameter.name}\" that is marked as $parameterPurity, but the value sent is not $parameterPurity.\n" +
                         " - If passing a function input, annotate it as @$parameterPurity.\n"+
@@ -368,7 +469,7 @@ class CheckFunctionPurityVisitor(
         // If the outer function is AT THE SAME LEVEL as the parameter, we must still check the lambda
         // explicitly, otherwise the outer traversal produces only a generic "calls non-pure function"
         // error instead of the specific "non-pure value passed to @Pure parameter" error.
-        if (declaredFunctionPurity > parameterPurity) return
+        if (declaredFunctionPurity.isStrictlyMoreRestrictiveThan(parameterPurity)) return
 
         // Mark the lambda as checked so the outer function's general traversal does not re-visit it
         // and produce duplicate (and less specific) error messages.
@@ -381,6 +482,7 @@ class CheckFunctionPurityVisitor(
     private fun functionAnnotationFor(purity: FunctionPurity) = when (purity) {
         FunctionPurity.Pure -> FunctionAnnotations.Pure
         FunctionPurity.Readonly -> FunctionAnnotations.Readonly
+        FunctionPurity.InternalStateMutating -> throw IllegalArgumentException("Parameters cannot be marked @ModifiesInternalStateOnly")
         FunctionPurity.None -> throw IllegalArgumentException("FunctionPurity.None has no corresponding FunctionAnnotations entry")
     }
 
@@ -388,7 +490,7 @@ class CheckFunctionPurityVisitor(
      * Does not include lambdas since they require actual checking of the function body.
      * */
     private fun getExpressionPurity(parameterExpression: IrExpression?) = when {
-        
+
         parameterExpression is IrGetValue -> { // local variable
             when {
                 parameterExpression.symbol.owner.hasAnnotation(Annotations.Pure) -> FunctionPurity.Pure
@@ -433,7 +535,7 @@ class CheckFunctionPurityVisitor(
         val valueParameters = declaration.parameters.filter { it.kind == IrParameterKind.Regular || it.kind == IrParameterKind.Context }
         for (parameter in valueParameters) {
             val defaultValue = parameter.defaultValue ?: continue
-            
+
             val parameterPurity = when {
                 parameter.hasAnnotation(Annotations.Pure) -> FunctionPurity.Pure
                 parameter.hasAnnotation(Annotations.Readonly) -> FunctionPurity.Readonly
@@ -445,13 +547,13 @@ class CheckFunctionPurityVisitor(
             val defaultExpression = defaultValue.expression
             if (defaultExpression is IrFunctionExpression) { // lambda expression
                 // If this functions is already on the parameter purity level or higher, we already check it satisfies the required purity - no-op
-                if (declaredFunctionPurity >= parameterPurity) return
+                if (declaredFunctionPurity.isAtLeastAsRestrictiveAs(parameterPurity)) return
 
                 // If there are problems, this will raise them as-is
                 functionAnnotationFor(parameterPurity).validate(defaultExpression.function, purityConfig, messageCollector)
                 continue
             }
-            
+
             val defaultValuePurity = getExpressionPurity(defaultExpression)
             if (defaultValuePurity == null) {
                 report(
@@ -460,7 +562,7 @@ class CheckFunctionPurityVisitor(
                     declaration
                 )
             }
-            else if (defaultValuePurity < parameterPurity) {
+            else if (!canCall(parameterPurity, defaultValuePurity)) {
                 report(
                     "Function \"${declaration.name}\" has parameter \"${parameter.name}\" that is marked as $parameterPurity, " +
                             "but the default value's purity is not $parameterPurity.",
