@@ -1,3 +1,9 @@
+## 1.11
+
+Split "internal state" into "internal state access" and "internal state mutation"
+
+Implementation unifies validation to include 2 axes - "mutation read" and "mutation write".
+
 ## 1.9
 
 Validate "Internal State" annotations - classes declaring they only mutate local state should never set vars of other instances or call external non-readonly functions.
