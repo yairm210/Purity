@@ -5,6 +5,7 @@ import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity
 import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
 import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.backend.js.utils.parentEnumClassOrNull
+import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrProperty
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
 import org.jetbrains.kotlin.ir.util.*
@@ -76,6 +77,18 @@ internal class PurityElementTransformer(
         val functionDeclaredPurity = when {
             ExpectedFunctionPurityChecker.isMarkedAsPure(declaration, purityConfig) -> FunctionPurity.Pure
             ExpectedFunctionPurityChecker.isReadonly(declaration, purityConfig) -> FunctionPurity.Readonly
+            // @InternalStateMutation/@InternalStateAccess are not orthogonal to each other - they're
+            // two points on the same read/write restrictiveness lattice as Pure/Readonly (InternalStateAccess
+            // strictly more restrictive than InternalStateMutation) - so exactly one is picked here, same
+            // as Pure/Readonly above, rather than validating both independently (unlike @ReturnsNewInstance,
+            // which is an orthogonal, unrelated property and is validated independently below).
+            // A direct annotation on the function itself always wins over one inherited from its class,
+            // so a function can deliberately relax (or further restrict) what its class declares.
+            declaration.parent !is IrClass -> FunctionPurity.None // local functions can't be isolated-checked for this - see InternalStateMutationValidator/InternalStateAccessValidator
+            declaration.hasAnnotation(Annotations.InternalStateAccess) -> FunctionPurity.InternalStateAccess
+            declaration.hasAnnotation(Annotations.InternalStateMutation) -> FunctionPurity.InternalStateMutation
+            FunctionAnnotations.InternalStateAccess.isExplicitlyMarked(declaration, purityConfig) -> FunctionPurity.InternalStateAccess
+            FunctionAnnotations.InternalStateMutation.isExplicitlyMarked(declaration, purityConfig) -> FunctionPurity.InternalStateMutation
             else -> FunctionPurity.None
         }
         val messageCollector = debugLogger.messageCollector
@@ -83,14 +96,11 @@ internal class PurityElementTransformer(
         val visitor = CheckFunctionPurityVisitor(declaration, functionDeclaredPurity, messageCollector, purityConfig)
         declaration.accept(visitor, Unit)
 
-        // @ReturnsNewInstance is orthogonal to Pure/Readonly/None, so it's validated independently
+        // @ReturnsNewInstance is an orthogonal, unrelated property - a function can simultaneously be
+        // e.g. @Pure AND @ReturnsNewInstance - so it's validated independently of the above
         val returnsNewInstanceMessages = FunctionAnnotations.ReturnsNewInstance.validate(declaration, purityConfig, messageCollector)
 
-        // @ModifiesInternalStateOnly's "may only mutate state it owns" contract is likewise orthogonal,
-        // and only applies to functions marked as such (directly, or via their class) that aren't already Pure/Readonly
-        val internalStateMessages = FunctionAnnotations.ModifiesInternalStateOnly.validate(declaration, purityConfig, messageCollector)
-
-        val hasErrored = visitor.hasErrored || returnsNewInstanceMessages.isNotEmpty() || internalStateMessages.isNotEmpty()
+        val hasErrored = visitor.hasErrored || returnsNewInstanceMessages.isNotEmpty()
 
         val actualPurity = visitor.actualFunctionPurity()
 
@@ -119,6 +129,8 @@ internal class PurityElementTransformer(
             val message = when (actualPurity) {
                 FunctionPurity.Pure -> "Function \"${declaration.name}\" can be marked with @Pure to indicate it is pure"
                 FunctionPurity.Readonly -> "Function \"${declaration.name}\" can be marked with @Readonly to indicate it is readonly"
+                FunctionPurity.InternalStateAccess -> "Function \"${declaration.name}\" can be marked with @InternalStateAccess to indicate it only reads and writes its own instance-internal state"
+                FunctionPurity.InternalStateMutation -> "Function \"${declaration.name}\" can be marked with @InternalStateMutation to indicate it only writes its own instance-internal state"
                 else -> throw Exception("Unexpected function purity: $actualPurity")
             }
 

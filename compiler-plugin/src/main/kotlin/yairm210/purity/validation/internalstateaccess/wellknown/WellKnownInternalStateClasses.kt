@@ -1,4 +1,4 @@
-package yairm210.purity.validation.modifiesinternalstate.wellknown
+package yairm210.purity.validation.internalstateaccess.wellknown
 
 /** Classes that hold state internally.
  * This means that if this function created that class, and it does not leak, it can call all functions on it and be considered pure

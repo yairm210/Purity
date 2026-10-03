@@ -16,8 +16,9 @@ import yairm210.purity.validation.functionpurity.wellknown.wellKnownPureClasses
 import yairm210.purity.validation.functionpurity.wellknown.wellKnownPureFunctions
 import yairm210.purity.validation.functionpurity.wellknown.wellKnownReadonlyClasses
 import yairm210.purity.validation.functionpurity.wellknown.wellKnownReadonlyFunctions
-import yairm210.purity.validation.modifiesinternalstate.validateModifiesInternalStateOnly
-import yairm210.purity.validation.modifiesinternalstate.wellknown.wellKnownInternalStateClasses
+import yairm210.purity.validation.internalstateaccess.validateInternalStateAccess
+import yairm210.purity.validation.internalstateaccess.wellknown.wellKnownInternalStateClasses
+import yairm210.purity.validation.internalstatemutation.validateInternalStateMutation
 import yairm210.purity.validation.returnsnewinstance.validateReturnsNewInstance
 import yairm210.purity.validation.returnsnewinstance.wellknown.wellKnownNewInstanceFunctions
 
@@ -31,9 +32,9 @@ import yairm210.purity.validation.returnsnewinstance.wellknown.wellKnownNewInsta
  *  D. [validate] - given a function marked/expected to be this annotation, check that its body
  *     actually follows the annotation's rules, reporting + returning any violations
  *
- * Only [ModifiesInternalStateOnly] can actually be placed on a class as an annotation (`@Target` on
- * the others is function-only) - but all four entries support marking a *whole class* via the
- * well-known-classes FQN config, meaning "every function of this class is marked".
+ * Only [InternalStateMutation] and [InternalStateAccess] can actually be placed on a class as an
+ * annotation (`@Target` on the others is function-only) - but every entry supports marking a
+ * *whole class* via the well-known-classes FQN config, meaning "every function of this class is marked".
  *
  * Note: [isExplicitlyMarked] only covers the mechanical annotation/FQN/override/class matching that is
  * common to all of these. @Pure and @Readonly have additional structural heuristics layered on top of
@@ -48,7 +49,7 @@ enum class FunctionAnnotations(
     // "returns a new instance" as a whole) - defaults to "no class-level support" for those that don't need it
     private val wellKnownClasses: Set<String> = emptySet(),
     private val wellKnownClassesFromUser: (PurityConfig) -> Set<String> = { emptySet() },
-    // Deprecated alias also recognized for backward compatibility - e.g. @InternalState for ModifiesInternalStateOnly
+    // Deprecated alias also recognized for backward compatibility - e.g. @InternalState for InternalStateAccess
     private val legacyFqName: FqName? = null,
 ) {
     Pure(
@@ -89,16 +90,25 @@ enum class FunctionAnnotations(
             validateReturnsNewInstance(function, purityConfig, messageCollector)
     },
 
-    ModifiesInternalStateOnly(
-        Annotations.ModifiesInternalStateOnly,
+    InternalStateMutation(
+        Annotations.InternalStateMutation,
         emptySet(),
-        { it.wellKnownModifiesInternalStateOnlyFunctionsFromUser },
+        { it.wellKnownInternalStateMutationFunctionsFromUser },
+    ) {
+        override fun validate(function: IrFunction, purityConfig: PurityConfig, messageCollector: MessageCollector): List<String> =
+            validateInternalStateMutation(function, purityConfig, messageCollector)
+    },
+
+    InternalStateAccess(
+        Annotations.InternalStateAccess,
+        emptySet(),
+        { it.wellKnownInternalStateAccessFunctionsFromUser },
         wellKnownInternalStateClasses,
         { it.wellKnownInternalStateClassesFromUser },
         legacyFqName = Annotations.InternalState,
     ) {
         override fun validate(function: IrFunction, purityConfig: PurityConfig, messageCollector: MessageCollector): List<String> =
-            validateModifiesInternalStateOnly(function, purityConfig, messageCollector)
+            validateInternalStateAccess(function, purityConfig, messageCollector)
     };
 
     private fun IrAnnotationContainer.hasThisOrLegacyAnnotation(): Boolean =

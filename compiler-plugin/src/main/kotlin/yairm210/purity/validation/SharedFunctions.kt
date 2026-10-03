@@ -27,7 +27,7 @@ import org.jetbrains.kotlin.ir.types.getClass
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.name.FqName
 import yairm210.purity.PurityConfig
-import yairm210.purity.validation.modifiesinternalstate.wellknown.wellKnownInternalStateClasses
+import yairm210.purity.validation.internalstateaccess.wellknown.wellKnownInternalStateClasses
 
 /**
  * Functions and classes shared between two or more of the purity-checking usecases
@@ -96,7 +96,7 @@ internal fun representsAnnotationBearer(irExpression: IrExpression, annotation: 
  * that is also `final`? Such a setter is exactly equivalent to a raw field set, with zero risk of any
  * other side effect, regardless of what class it belongs to - so it can be trusted on any receiver the
  * caller already has mutation/ownership rights over, without needing that class to otherwise be
- * "safe" (e.g. well-known-internal-state or @ModifiesInternalStateOnly). Must be `final`: an `open`/
+ * "safe" (e.g. well-known-internal-state or @InternalStateMutation/@InternalStateAccess). Must be `final`: an `open`/
  * overridable setter could resolve, at runtime, to a subclass override with arbitrary side effects,
  * even though this call site's symbol still points at the (harmless) base default accessor. */
 internal fun isTrustedDefaultSetter(function: IrSimpleFunction): Boolean =
@@ -119,11 +119,15 @@ internal fun unwrapCompoundAssignmentTemp(expression: IrExpression?): IrExpressi
     return unwrapCompoundAssignmentTemp(unwrappedInitializer)
 }
 
-/** Is [irClass] marked as InternalState - directly, or via well-known FQN (built-in or user config). */
+/** Is [irClass] one whose own behavior is fully self-contained - marked @InternalStateAccess or
+ * @InternalStateMutation (directly, the deprecated legacy @InternalState, or via well-known FQN,
+ * built-in or user config). Either annotation qualifies: @InternalStateAccess is strictly stricter
+ * than @InternalStateMutation, so satisfying it satisfies both needs. */
 internal fun isInternalStateClass(irClass: IrClass?, purityConfig: PurityConfig): Boolean {
     if (irClass == null) return false
-    if (irClass.hasAnnotation(Annotations.ModifiesInternalStateOnly)) return true
-    if (irClass.hasAnnotation(Annotations.InternalState)) return true // Deprecated - see ModifiesInternalStateOnly
+    if (irClass.hasAnnotation(Annotations.InternalStateAccess)) return true
+    if (irClass.hasAnnotation(Annotations.InternalStateMutation)) return true
+    if (irClass.hasAnnotation(Annotations.InternalState)) return true // Deprecated - see InternalStateAccess
     val fullyQualifiedClassName = irClass.fqNameForIrSerialization.asString()
     if (fullyQualifiedClassName in wellKnownInternalStateClasses) return true
     if (fullyQualifiedClassName in purityConfig.wellKnownInternalStateClassesFromUser) return true
@@ -155,7 +159,7 @@ internal fun isNewInstanceField(field: IrField, purityConfig: PurityConfig): Boo
  * If [requireInternalStateClass] is set, only instances whose type is itself a well-known/annotated
  * internal-state class are tracked - used where the mutation-rights grant should be limited to such
  * (e.g. @Mutated parameter passing under @Pure/@Readonly). Otherwise, any newly-owned instance counts,
- * regardless of its type (e.g. @ModifiesInternalStateOnly's clone-and-mutate pattern, or @ReturnsNewInstance's
+ * regardless of its type (e.g. @InternalStateMutation's clone-and-mutate pattern, or @ReturnsNewInstance's
  * "local val assigned from a constructor/another @ReturnsNewInstance call" rule). */
 internal class OwnedInstanceVariableTracker(
     private val purityConfig: PurityConfig,

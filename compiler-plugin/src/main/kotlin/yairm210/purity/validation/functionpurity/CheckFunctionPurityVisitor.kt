@@ -21,7 +21,7 @@ import yairm210.purity.validation.getLocationForExpression
 import yairm210.purity.validation.isInternalStateClass
 import yairm210.purity.validation.isNewInstanceField
 import yairm210.purity.validation.isTrustedDefaultSetter
-import yairm210.purity.validation.modifiesinternalstate.wellknown.wellKnownInternalStateClasses
+import yairm210.purity.validation.internalstateaccess.wellknown.wellKnownInternalStateClasses
 import yairm210.purity.validation.representsAnnotationBearer
 import yairm210.purity.validation.returnsnewinstance.suggestReturnsNewInstanceFix
 import yairm210.purity.validation.suppressesPurity
@@ -29,8 +29,8 @@ import yairm210.purity.validation.unwrapCompoundAssignmentTemp
 import yairm210.purity.validation.unwrapSafeCall
 
 /** Checks all declarations of a specific function against [declaredFunctionPurity]'s read/write
- * requirements - the single checker used for all three of @Pure, @Readonly, and
- * @ModifiesInternalStateOnly (passed in as [FunctionPurity.InternalStateMutating]).
+ * requirements - the single checker used for all four of @Pure, @Readonly,
+ * @InternalStateMutation, and @InternalStateAccess.
  * Warns every time a var is set a value, or an insufficiently-restricted function is called.
  * Vars that are created within the function are OK to set. */
 class CheckFunctionPurityVisitor(
@@ -64,6 +64,8 @@ class CheckFunctionPurityVisitor(
         return when {
             mutableStateWrite <= MutationLevel.None && mutableStateRead <= MutationLevel.None -> FunctionPurity.Pure
             mutableStateWrite <= MutationLevel.None -> FunctionPurity.Readonly
+            mutableStateRead <= MutationLevel.InstanceInternal && mutableStateWrite <= MutationLevel.InstanceInternal -> FunctionPurity.InternalStateAccess
+            mutableStateWrite <= MutationLevel.InstanceInternal -> FunctionPurity.InternalStateMutation
             else -> FunctionPurity.None
         }
     }
@@ -109,17 +111,17 @@ class CheckFunctionPurityVisitor(
     }
 
     // A field of `this` (or an owned local instance) is state this instance owns - acceptable for
-    // @ModifiesInternalStateOnly's write:InstanceInternal requirement. @Pure/@Readonly never reach
-    // this (their write requirement is None, stricter than InstanceInternal) - this preserves their
-    // historical behavior of not checking raw field sets at all.
+    // @InternalStateMutation/@InternalStateAccess's write:InstanceInternal requirement. @Pure/@Readonly
+    // never reach this (their write requirement is None, stricter than InstanceInternal) - this
+    // preserves their historical behavior of not checking raw field sets at all.
     override fun visitSetField(expression: IrSetField, data: Unit) {
-        if (declaredFunctionPurity == FunctionPurity.InternalStateMutating) {
+        if (declaredFunctionPurity.mutableStateWrite == MutationLevel.InstanceInternal) {
             val receiver = unwrapReceiver(expression.receiver)
             val isOwnedReceiver = isThis(receiver) || ownedInstances.isOwned(receiver)
             if (!isOwnedReceiver) {
                 report(
                     "Function \"${function.name}\" is marked as $declaredFunctionPurity but sets field \"${expression.symbol.owner.name}\" on an object other than this instance or an owned local instance.\n" +
-                        " - @ModifiesInternalStateOnly may only mutate state that it owns.\n",
+                        " - $declaredFunctionPurity may only mutate state that it owns.\n",
                     expression
                 )
             }
@@ -127,12 +129,30 @@ class CheckFunctionPurityVisitor(
         super.visitSetField(expression, data)
     }
 
+    // A field read of `this` (or an owned local instance) is state this instance owns - acceptable
+    // for @InternalStateAccess's read:InstanceInternal requirement. @Pure/@Readonly/@InternalStateMutation
+    // never reach this (their read requirement is Any or None, neither of which is InstanceInternal).
+    override fun visitGetField(expression: IrGetField, data: Unit) {
+        if (declaredFunctionPurity.mutableStateRead == MutationLevel.InstanceInternal) {
+            val receiver = unwrapReceiver(expression.receiver)
+            val isOwnedReceiver = isThis(receiver) || ownedInstances.isOwned(receiver)
+            if (!isOwnedReceiver) {
+                report(
+                    "Function \"${function.name}\" is marked as $declaredFunctionPurity but reads field \"${expression.symbol.owner.name}\" on an object other than this instance or an owned local instance.\n" +
+                        " - $declaredFunctionPurity may only read state that it owns.\n",
+                    expression
+                )
+            }
+        }
+        super.visitGetField(expression, data)
+    }
+
     // Vals initialized with a newly-allocated, unaliased instance of a well-known internal state
     // class - the same as manually adding @LocalState
     private val localStateVariables = OwnedInstanceVariableTracker(purityConfig, requireInternalStateClass = true)
 
     // Same, but with no class restriction - used to trust default property setter calls, and (for
-    // @ModifiesInternalStateOnly) any call/field-set on a freshly-owned local instance of any class
+    // @InternalStateMutation/@InternalStateAccess) any call/field-set on a freshly-owned local instance of any class
     private val ownedInstances = OwnedInstanceVariableTracker(purityConfig)
 
     private val checkedLambdaFunctions = HashSet<IrFunction>()
@@ -154,7 +174,7 @@ class CheckFunctionPurityVisitor(
             && !varCreatedInFunction(varValueDeclaration)) {
             widenRead(MutationLevel.Any)
 
-            if (declaredFunctionPurity == FunctionPurity.Pure) {
+            if (declaredFunctionPurity.mutableStateRead < MutationLevel.Any) {
                 report(
                     "Function \"${function.name}\" is marked as $declaredFunctionPurity but gets variable \"${varValueDeclaration.name}\"",
                     expression
@@ -172,11 +192,11 @@ class CheckFunctionPurityVisitor(
         super.visitCall(expression, data)
     }
 
-    // -- @ModifiesInternalStateOnly-specific receiver trust (write:InstanceInternal) --
+    // -- @InternalStateMutation/@InternalStateAccess-specific receiver trust (write:InstanceInternal) --
     // These grant trust based on WHO the receiver is, regardless of the called function's own
     // declared purity - unlike every other allowance below, which is about the CALLEE's purity.
-    // Only relevant when declaredFunctionPurity == InternalStateMutating (write:None callers like
-    // @Pure/@Readonly never get an instance-boundary concept - only a local/not-local one).
+    // Only relevant when declaredFunctionPurity's write level is InstanceInternal (write:None callers
+    // like @Pure/@Readonly never get an instance-boundary concept - only a local/not-local one).
 
     private val thisReceiver = function.dispatchReceiverParameter
     private fun isThis(expression: IrExpression?): Boolean =
@@ -225,9 +245,9 @@ class CheckFunctionPurityVisitor(
         return isInternalStateClass(field.type.getClass(), purityConfig)
     }
 
-    /** Is [rawReceiver] trusted under @ModifiesInternalStateOnly's receiver-ownership rules - any
-     * method called on `this`, an owned local instance, a trusted field of `this`, or a delegate field -
-     * regardless of the called function's own declared purity. */
+    /** Is [rawReceiver] trusted under @InternalStateMutation/@InternalStateAccess's receiver-ownership
+     * rules - any method called on `this`, an owned local instance, a trusted field of `this`, or a
+     * delegate field - regardless of the called function's own declared purity. */
     private fun isAllowedInternalStateReceiver(rawReceiver: IrExpression?): Boolean {
         val receiver = unwrapReceiver(rawReceiver)
         return isThis(receiver) || ownedInstances.isOwned(receiver) || isOwnField(receiver) || isTrustedDelegateField(receiver)
@@ -312,9 +332,9 @@ class CheckFunctionPurityVisitor(
         widenWrite(calledFunctionPurity.mutableStateWrite)
 
         val allowed = canCall(declaredFunctionPurity, calledFunctionPurity)
-                // @ModifiesInternalStateOnly also trusts calls based on WHO the receiver is,
-                // regardless of the callee's own declared purity - see isAllowedInternalStateReceiver
-                || (declaredFunctionPurity == FunctionPurity.InternalStateMutating && isAllowedInternalStateReceiver(receiver))
+                // @InternalStateMutation/@InternalStateAccess also trust calls based on WHO the
+                // receiver is, regardless of the callee's own declared purity - see isAllowedInternalStateReceiver
+                || (declaredFunctionPurity.mutableStateWrite == MutationLevel.InstanceInternal && isAllowedInternalStateReceiver(receiver))
 
         if (!allowed) {
             reportUnacceptableFunctionCall(expression, calledFunction, calledFunctionPurity, receiver)
@@ -482,7 +502,8 @@ class CheckFunctionPurityVisitor(
     private fun functionAnnotationFor(purity: FunctionPurity) = when (purity) {
         FunctionPurity.Pure -> FunctionAnnotations.Pure
         FunctionPurity.Readonly -> FunctionAnnotations.Readonly
-        FunctionPurity.InternalStateMutating -> throw IllegalArgumentException("Parameters cannot be marked @ModifiesInternalStateOnly")
+        FunctionPurity.InternalStateMutation -> throw IllegalArgumentException("Parameters cannot be marked @InternalStateMutation")
+        FunctionPurity.InternalStateAccess -> throw IllegalArgumentException("Parameters cannot be marked @InternalStateAccess")
         FunctionPurity.None -> throw IllegalArgumentException("FunctionPurity.None has no corresponding FunctionAnnotations entry")
     }
 

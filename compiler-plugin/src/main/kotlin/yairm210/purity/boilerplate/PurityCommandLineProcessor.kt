@@ -16,7 +16,8 @@ val wellKnownReadonlyClasses = "wellKnownReadonlyClasses"
 val wellKnownReadonlyFunctions = "wellKnownReadonlyFunctions"
 val wellKnownInternalStateClasses = "wellKnownInternalStateClasses"
 val wellKnownNewInstanceFunctions = "wellKnownNewInstanceFunctions"
-val wellKnownModifiesInternalStateOnlyFunctions = "wellKnownModifiesInternalStateOnlyFunctions"
+val wellKnownInternalStateMutationFunctions = "wellKnownInternalStateMutationFunctions"
+val wellKnownInternalStateAccessFunctions = "wellKnownInternalStateAccessFunctions"
 
 @AutoService(CommandLineProcessor::class) // don't forget!
 class PurityCommandLineProcessor : CommandLineProcessor {
@@ -63,8 +64,13 @@ class PurityCommandLineProcessor : CommandLineProcessor {
             required = false
         ),
         CliOption(
-            optionName = wellKnownModifiesInternalStateOnlyFunctions, valueDescription = "<fully qualified function names delimited by underscores>",
+            optionName = wellKnownInternalStateMutationFunctions, valueDescription = "<fully qualified function names delimited by underscores>",
             description = "A list of fully qualified function names that only mutate state they own",
+            required = false
+        ),
+        CliOption(
+            optionName = wellKnownInternalStateAccessFunctions, valueDescription = "<fully qualified function names delimited by underscores>",
+            description = "A list of fully qualified function names that only read and mutate state they own",
             required = false
         ),
     )
@@ -92,7 +98,8 @@ class PurityCommandLineProcessor : CommandLineProcessor {
         wellKnownInternalStateClasses -> getConfig(configuration).wellKnownInternalStateClassesFromUser = stringToSet(value)
         wellKnownReadonlyClasses -> getConfig(configuration).wellKnownReadonlyClassesFromUser = stringToSet(value)
         wellKnownNewInstanceFunctions -> getConfig(configuration).wellKnownNewInstanceFunctionsFromUser = stringToSet(value)
-        wellKnownModifiesInternalStateOnlyFunctions -> getConfig(configuration).wellKnownModifiesInternalStateOnlyFunctionsFromUser = stringToSet(value)
+        wellKnownInternalStateMutationFunctions -> getConfig(configuration).wellKnownInternalStateMutationFunctionsFromUser = stringToSet(value)
+        wellKnownInternalStateAccessFunctions -> getConfig(configuration).wellKnownInternalStateAccessFunctionsFromUser = stringToSet(value)
         else -> throw IllegalArgumentException("Unknown option: ${option.optionName}")
     }
 }

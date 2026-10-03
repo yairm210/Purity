@@ -6,7 +6,7 @@ import kotlin.annotation.AnnotationTarget.FUNCTION
  * An annotation to indicate that this function always returns a newly allocated instance, not
  * aliased/shared with its inputs or with external state.
  *
- * This means that if the return type is @ModifiesInternalStateOnly, the resulting value is
+ * This means that if the return type is @InternalStateMutation, the resulting value is
  * guaranteed to be LocalState, just like for constructors.
  * This is unnecessary for immutable classes, since they can't be mutated regardless.
  *

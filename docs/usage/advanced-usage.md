@@ -25,8 +25,34 @@ Function purity is determined by its outer boundary - given the same call, retur
 
 One way many functions work is by building up a *mutable* object - a list, a map, etc - and returning it.
 
-Common classes we can recognize as "holding internal state", and thus new instances can be recognized as "only available within the function".
-New classes can be added via `wellKnownInternalStateClasses` in the config. 
+Common classes we can recognize as "holding internal state" (classes/functions marked `@InternalStateAccess`, or well-known ones), and thus new instances can be recognized as "only available within the function".
+New classes can be added via `wellKnownInternalStateClasses` in the config.
+
+### Restricting functions to their own internal state
+
+Besides `@Pure` (reads nothing external, writes nothing external) and `@Readonly` (reads anything, writes nothing external), two more annotations restrict functions in terms of what mutable state they may read/write, relative to the instance (`this`) they belong to:
+
+- `@InternalStateMutation`: can read ALL mutable state, but can write ONLY its own instance-internal mutable state.
+- `@InternalStateAccess`: can read AND write ONLY its own instance-internal mutable state - strictly more restrictive than `@InternalStateMutation`.
+
+```kotlin
+@InternalStateMutation
+class Counter {
+    var count = 0
+    fun increment() { count += 1 } // mutating its own field - fine
+}
+
+@InternalStateAccess
+class StrictCounter {
+    var count = 0
+    fun increment() { count += 1 } // mutating its own field - fine
+    fun read() = count // reading its own field - fine
+}
+```
+
+Both annotations can be placed on a class (applying to every function in it) or on an individual function. Their well-known-FQN equivalents in the config are `wellKnownInternalStateMutationFunctions` / `wellKnownInternalStateAccessFunctions` for functions, and `wellKnownInternalStateClasses` for classes marked as `@InternalStateAccess` - see [Handling external libraries](configuration.md#handling-external-libraries).
+
+The deprecated `@InternalState` class annotation has been renamed to `@InternalStateAccess`.
 
 For non-constructors, we need to add the `@LocalState` attribute manually:
 

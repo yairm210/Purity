@@ -14,9 +14,11 @@ import kotlin.annotation.AnnotationTarget.FUNCTION
  * On a function: that specific function follows the same contract, regardless of whether its
  * class is annotated.
  *
- * The equivalent of this for external classes/functions is WellKnownInternalStateClasses/WellKnownModifiesInternalStateOnlyFunctions -
+ * Can read ALL mutable state. Can write ONLY INSTANCE-INTERNAL mutable state.
+ *
+ * The equivalent of this for external functions is WellKnownInternalStateMutationFunctions -
  * see https://yairm210.github.io/Purity/usage/configuration/#handling-external-classes
  *
  * Validated on compilation
  */
-@Target(CLASS, FUNCTION) public annotation class ModifiesInternalStateOnly
+@Target(CLASS, FUNCTION) public annotation class InternalStateMutation

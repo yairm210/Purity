@@ -372,7 +372,7 @@ fun testLocalStateRecognizedAutomaticallyForKnownClasses(){
 }
 
 fun testTrustedDefaultSetterOnOwnedInstanceOfPlainClass() {
-    // PlainData is not a well-known internal-state class, nor @ModifiesInternalStateOnly - but its
+    // PlainData is not a well-known internal-state class, nor @InternalStateMutation - but its
     // setter for `value` is a compiler-generated default setter (just `field = value`), so it's trusted
     // on an owned (freshly-constructed) local instance even though the class itself offers no guarantee
     class PlainData {
@@ -483,13 +483,13 @@ fun testInternalStateMethodsCanOnlyMutateOwnState() {
     var externalVar = 0
     fun externalMutatingFunction() { externalVar += 1 }
 
-    @ModifiesInternalStateOnly
+    @InternalStateMutation
     class Inner {
         var y = 0
         fun assignY(value: Int) { y = value }
     }
 
-    @ModifiesInternalStateOnly
+    @InternalStateMutation
     class Good {
         var x = 0
         val inner = Inner()
@@ -513,7 +513,7 @@ fun testInternalStateMethodsCanOnlyMutateOwnState() {
             return new
         }
 
-        // Calling a mutating method on a field whose own class is also @ModifiesInternalStateOnly - fine,
+        // Calling a mutating method on a field whose own class is also @InternalStateMutation - fine,
         // since that class itself guarantees it only mutates state that it owns
         fun mutateInnerField() {
             inner.assignY(5)
@@ -560,21 +560,21 @@ fun testInternalStateMethodsCanOnlyMutateOwnState() {
         fun assignY(value: Int) { y = value }
     }
 
-    @ModifiesInternalStateOnly
+    @InternalStateMutation
     class BadFieldOfPlainType {
         val helper = PlainHelper()
         @TestExpectCompileError
         fun mutateHelperField() {
-            // PlainHelper is not @ModifiesInternalStateOnly (nor a well-known internal-state class),
+            // PlainHelper is not @InternalStateMutation (nor a well-known internal-state class),
             // so it offers no guarantee about what its methods might do - NOT allowed, even though
             // helper is this instance's own field
             helper.assignY(5)
         }
     }
 
-    @ModifiesInternalStateOnly
+    @InternalStateMutation
     class BadWhitewashedField(externallyHeldInner: Inner) {
-        // Field's class is @ModifiesInternalStateOnly, but the val is assigned from a constructor
+        // Field's class is @InternalStateMutation, but the val is assigned from a constructor
         // parameter - the caller may still hold this same Inner reference, so it's NOT owned by this
         // instance, even though it looks like an "internal state field" at a glance
         val inner = externallyHeldInner
@@ -587,10 +587,10 @@ fun testInternalStateMethodsCanOnlyMutateOwnState() {
     // Interface delegation (`by map`) generates synthetic member functions (clear(), putAll(), etc.)
     // that just forward to the delegate - these are compiler-generated, not user-written, and must not
     // be validated as if the user wrote a call to an external mutating function inside their own body
-    @ModifiesInternalStateOnly
+    @InternalStateMutation
     class DelegatingToMap(private val map: HashMap<Int, String> = hashMapOf()) : MutableMap<Int, String> by map
 
-    @ModifiesInternalStateOnly
+    @InternalStateMutation
     class BadCall {
         var x = 0
         @TestExpectCompileError
@@ -600,7 +600,7 @@ fun testInternalStateMethodsCanOnlyMutateOwnState() {
         }
     }
 
-    @ModifiesInternalStateOnly
+    @InternalStateMutation
     class BadSet {
         var x = 0
         @TestExpectCompileError
@@ -609,7 +609,7 @@ fun testInternalStateMethodsCanOnlyMutateOwnState() {
         }
     }
 
-    @ModifiesInternalStateOnly
+    @InternalStateMutation
     class BadCrossInstanceSet {
         var x = 0
         @TestExpectCompileError
@@ -618,7 +618,7 @@ fun testInternalStateMethodsCanOnlyMutateOwnState() {
         }
     }
 
-    @ModifiesInternalStateOnly
+    @InternalStateMutation
     class BadCrossInstanceCall {
         var x = 0
         fun assignX(value: Int) { x = value }
@@ -629,17 +629,17 @@ fun testInternalStateMethodsCanOnlyMutateOwnState() {
     }
 }
 
-fun testModifiesInternalStateOnlyOnFunctionDirectly() {
+fun testInternalStateMutationOnFunctionDirectly() {
     // The annotation can now be placed on a specific function, without needing to mark the whole class
     class PartiallyRestricted {
         var x = 0
         var y = 0
 
-        @ModifiesInternalStateOnly
+        @InternalStateMutation
         fun setXOnly(value: Int) { x = value } // fine - mutating own field
 
         // Not annotated - free to do whatever it wants, e.g. this would be fine even though
-        // it wouldn't be allowed if this function were itself @ModifiesInternalStateOnly
+        // it wouldn't be allowed if this function were itself @InternalStateMutation
         fun setYFreely(value: Int) { y = value }
     }
 
@@ -647,15 +647,100 @@ fun testModifiesInternalStateOnlyOnFunctionDirectly() {
 
     class BadFunctionLevel {
         var x = 0
-        @ModifiesInternalStateOnly @TestExpectCompileError
+        @InternalStateMutation @TestExpectCompileError
         fun setXFromExternal() {
             externalVar = 1 // NOT allowed - not local, not own field
         }
     }
 }
 
+fun testInternalStateAccessMethodsCanOnlyReadAndMutateOwnState() {
+    var externalVar = 0
+    fun externalReadingFunction(): Int = externalVar
+
+    @InternalStateAccess
+    class Good {
+        var x = 0
+        fun assignX(value: Int) { x = value } // mutating own field - fine
+
+        fun readX(): Int = x // reading own field - fine
+
+        fun setXFromOwnRead() { x = readX() + 1 } // reading + mutating own field - fine
+
+        fun setXViaLocal() {
+            var local = 5
+            local += 1 // mutating a local - fine
+            x = local
+        }
+    }
+
+    @InternalStateAccess
+    class BadRead {
+        var x = 0
+        @TestExpectCompileError
+        fun readExternalVar(): Int {
+            // Not a single-statement return (which would trigger the separate "single-statement
+            // getter" readonly heuristic and bypass this check) - reading a var that isn't local
+            // or own field is NOT allowed
+            val value = externalVar
+            return value
+        }
+    }
+
+    @InternalStateAccess
+    class BadReadCall {
+        @TestExpectCompileError
+        fun callExternalReadingFunction(): Int {
+            return externalReadingFunction() // calling a non-Pure/Readonly/InternalState function - NOT allowed
+        }
+    }
+
+    @InternalStateAccess
+    class BadCrossInstanceRead {
+        var x = 0
+        @TestExpectCompileError
+        fun readXFromOther(other: BadCrossInstanceRead): Int {
+            // Not a single-statement return (see readExternalVar above) - reading a DIFFERENT
+            // instance's state, even of the same class, is NOT allowed
+            val value = other.x
+            return value
+        }
+    }
+
+    // A function-level annotation always wins over one inherited from its class - @InternalStateAccess
+    // and @InternalStateMutation are NOT orthogonal to each other (unlike e.g. @ReturnsNewInstance),
+    // so a function explicitly relaxed to @InternalStateMutation is validated ONLY against that
+    // (looser) contract, not also against the class's stricter @InternalStateAccess
+    @InternalStateAccess
+    class RelaxedOnOneFunction {
+        var x = 0
+
+        @InternalStateMutation
+        fun readExternalThenMutateOwnField() {
+            val value = externalVar // allowed here - this function overrides to @InternalStateMutation (read:Any)
+            x = value
+        }
+
+        @TestExpectCompileError
+        fun readExternalVar(): Int {
+            // Not overridden - still restricted by the class's @InternalStateAccess
+            val value = externalVar
+            return value
+        }
+    }
+
+    @InternalStateAccess
+    class BadCrossInstanceSet {
+        var x = 0
+        @TestExpectCompileError
+        fun setXFromOther(other: BadCrossInstanceSet) {
+            other.x = 5 // mutating a DIFFERENT instance's state, even of the same class - NOT allowed
+        }
+    }
+}
+
 fun testPlusEqualsSet(){
-    @ModifiesInternalStateOnly class Internal(var a:Int)
+    @InternalStateMutation class Internal(var a:Int)
     
     @Pure
     fun testCanPlusSetInternal(){

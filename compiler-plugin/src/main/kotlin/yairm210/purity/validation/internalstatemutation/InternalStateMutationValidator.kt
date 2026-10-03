@@ -1,5 +1,5 @@
 @file:OptIn(UnsafeDuringIrConstructionAPI::class)
-package yairm210.purity.validation.modifiesinternalstate
+package yairm210.purity.validation.internalstatemutation
 
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
 import org.jetbrains.kotlin.ir.declarations.IrClass
@@ -15,19 +15,19 @@ import yairm210.purity.validation.functionpurity.FunctionPurity
 import yairm210.purity.validation.suppressesPurity
 
 /**
- * Validates the contract of `@ModifiesInternalStateOnly`: "can mutate *only* state that it owns" -
- * i.e. may read anything, but may only write state it owns ([FunctionPurity.InternalStateMutating]:
+ * Validates the contract of `@InternalStateMutation`: "can mutate *only* state that it owns" -
+ * i.e. may read anything, but may only write state it owns ([FunctionPurity.InternalStateMutation]:
  * read:Any, write:InstanceInternal). Delegates the actual per-statement checking to
  * [CheckFunctionPurityVisitor], the same checker used for `@Pure`/`@Readonly` - this function just
- * handles the pre-checks specific to how `@ModifiesInternalStateOnly` gets applied (class-level
+ * handles the pre-checks specific to how `@InternalStateMutation` gets applied (class-level
  * marking, local functions, already-Pure/Readonly functions).
  */
-internal fun validateModifiesInternalStateOnly(
+internal fun validateInternalStateMutation(
     function: IrFunction,
     purityConfig: PurityConfig,
     messageCollector: MessageCollector,
 ): List<String> {
-    if (!FunctionAnnotations.ModifiesInternalStateOnly.isExplicitlyMarked(function, purityConfig)) return emptyList()
+    if (!FunctionAnnotations.InternalStateMutation.isExplicitlyMarked(function, purityConfig)) return emptyList()
     if (function !is IrSimpleFunction) return emptyList()
 
     // Local functions (declared inside another function, e.g. a closure like `fun addWaypoint(...)`
@@ -45,7 +45,7 @@ internal fun validateModifiesInternalStateOnly(
     if (function.body == null) return emptyList()
     if (function.suppressesPurity()) return emptyList()
 
-    val visitor = CheckFunctionPurityVisitor(function, FunctionPurity.InternalStateMutating, messageCollector, purityConfig)
+    val visitor = CheckFunctionPurityVisitor(function, FunctionPurity.InternalStateMutation, messageCollector, purityConfig)
     function.accept(visitor, Unit)
     return visitor.reportedMessages
 }
