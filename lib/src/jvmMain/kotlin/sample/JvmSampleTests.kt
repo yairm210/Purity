@@ -707,25 +707,24 @@ fun testInternalStateAccessMethodsCanOnlyReadAndMutateOwnState() {
         }
     }
 
-    // A function-level annotation always wins over one inherited from its class - @InternalStateAccess
-    // and @InternalStateMutation are NOT orthogonal to each other (unlike e.g. @ReturnsNewInstance),
-    // so a function explicitly relaxed to @InternalStateMutation is validated ONLY against that
-    // (looser) contract, not also against the class's stricter @InternalStateAccess
+    // A function's class is a FLOOR on its restrictiveness, same as what it overrides - a function
+    // cannot declare itself less restrictive than its class. Marking a function @InternalStateMutation
+    // (weaker, read:Any) inside an @InternalStateAccess class (stricter, read:InstanceInternal) does
+    // NOT relax it - it's combined via harshest, so it's still checked as @InternalStateAccess
     @InternalStateAccess
-    class RelaxedOnOneFunction {
+    class CannotRelaxBelowOwnClass {
         var x = 0
 
         @InternalStateMutation
+        @TestExpectCompileError
         fun readExternalThenMutateOwnField() {
-            val value = externalVar // allowed here - this function overrides to @InternalStateMutation (read:Any)
+            val value = externalVar // NOT allowed - still restricted by the class's @InternalStateAccess
             x = value
         }
 
-        @TestExpectCompileError
-        fun readExternalVar(): Int {
-            // Not overridden - still restricted by the class's @InternalStateAccess
-            val value = externalVar
-            return value
+        @InternalStateMutation
+        fun mutateOwnFieldOnly() {
+            x = 1 // fine under either level
         }
     }
 
@@ -767,6 +766,34 @@ fun testInternalStateAccessMethodsCanOnlyReadAndMutateOwnState() {
     fun callableFromPureOnlyWhenOwned(): Int {
         val owned = ReadonlyAndInternalStateAccess()
         return owned.readX()
+    }
+}
+
+fun testOverridingCannotRelaxInternalStateRestriction() {
+    var externalVar = 0
+
+    abstract class Strict {
+        @InternalStateAccess
+        abstract fun doThing(): Int
+    }
+
+    class BadOverride : Strict() {
+        // Explicitly marking the override as the WEAKER @InternalStateMutation doesn't relax it -
+        // overriding can only tighten a restriction, never relax one, so this is still checked as
+        // @InternalStateAccess (the overridden function's level)
+        @InternalStateMutation
+        @TestExpectCompileError
+        override fun doThing(): Int {
+            return externalVar // allowed under @InternalStateMutation's read:Any, but NOT under the inherited @InternalStateAccess
+        }
+    }
+
+    class GoodOverride : Strict() {
+        var x = 0
+        @InternalStateMutation
+        override fun doThing(): Int {
+            return x // reading own field - fine under either level
+        }
     }
 }
 

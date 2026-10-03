@@ -75,29 +75,17 @@ internal class PurityElementTransformer(
 
         if (isSuppressed(declaration)) return super.visitSimpleFunction(declaration)
 
-        // @InternalStateMutation/@InternalStateAccess are not orthogonal to each other, nor to
-        // @Pure/@Readonly - all four are points on the same read/write restrictiveness lattice
-        // If more than one applies at once, the function is treated as the
+        // If more than one purity annotation applies at once, the function is treated as the
         // harshest (most restrictive, per axis) of all of them - see combineHarshest.
         val markedLevels = buildList {
             if (ExpectedFunctionPurityChecker.isMarkedAsPure(declaration, purityConfig)) add(FunctionPurity.Pure)
             if (ExpectedFunctionPurityChecker.isReadonly(declaration, purityConfig)) add(FunctionPurity.Readonly)
 
-            // @InternalStateMutation/@InternalStateAccess support class-level marking too - a direct
-            // annotation on the function itself always wins over ones merely inherited from its class,
-            // so a function can deliberately relax (or further restrict) what its class declares.
-            // Local functions can't be isolated-checked for this axis at all - see
+            // Local functions (functions within other functions) can't be isolated-checked for this axis at all - see
             // InternalStateMutationValidator/InternalStateAccessValidator.
             if (declaration.parent is IrClass) {
-                val directAccess = declaration.hasAnnotation(Annotations.InternalStateAccess)
-                val directMutation = declaration.hasAnnotation(Annotations.InternalStateMutation)
-                if (directAccess || directMutation) {
-                    if (directAccess) add(FunctionPurity.InternalStateAccess)
-                    if (directMutation) add(FunctionPurity.InternalStateMutation)
-                } else {
-                    if (FunctionAnnotations.InternalStateAccess.isExplicitlyMarked(declaration, purityConfig)) add(FunctionPurity.InternalStateAccess)
-                    if (FunctionAnnotations.InternalStateMutation.isExplicitlyMarked(declaration, purityConfig)) add(FunctionPurity.InternalStateMutation)
-                }
+                if (FunctionAnnotations.InternalStateAccess.isExplicitlyMarked(declaration, purityConfig)) add(FunctionPurity.InternalStateAccess)
+                if (FunctionAnnotations.InternalStateMutation.isExplicitlyMarked(declaration, purityConfig)) add(FunctionPurity.InternalStateMutation)
             }
         }
         val functionDeclaredPurity = combineHarshest(markedLevels)
