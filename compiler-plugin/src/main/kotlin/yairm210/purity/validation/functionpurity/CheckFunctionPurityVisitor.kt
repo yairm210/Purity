@@ -61,8 +61,10 @@ class CheckFunctionPurityVisitor(
     /** The strictest [FunctionPurity] whose read/write levels are both wide enough to cover what
      * this function's body has actually been observed to do. */
     fun actualFunctionPurity(): FunctionPurity {
+        // See image at https://yairm210.medium.com/beyond-pure-functions-a-hierarchy-of-function-attributes-027d9ed545cc
         return when {
             mutableStateWrite <= MutationLevel.None && mutableStateRead <= MutationLevel.None -> FunctionPurity.Pure
+            mutableStateWrite <= MutationLevel.None && mutableStateRead <= MutationLevel.InstanceInternal -> FunctionPurity.InternalStateReadonly
             mutableStateWrite <= MutationLevel.None -> FunctionPurity.Readonly
             mutableStateRead <= MutationLevel.InstanceInternal && mutableStateWrite <= MutationLevel.InstanceInternal -> FunctionPurity.InternalStateAccess
             mutableStateWrite <= MutationLevel.InstanceInternal -> FunctionPurity.InternalStateMutation
@@ -192,11 +194,13 @@ class CheckFunctionPurityVisitor(
         super.visitCall(expression, data)
     }
 
-    // -- @InternalStateMutation/@InternalStateAccess-specific receiver trust (write:InstanceInternal) --
+    // -- Instance-boundary receiver trust, for any declared purity with EITHER axis restricted to
+    // InstanceInternal (@InternalStateMutation, @InternalStateAccess, and the combined
+    // @InternalStateReadonly) --
     // These grant trust based on WHO the receiver is, regardless of the called function's own
     // declared purity - unlike every other allowance below, which is about the CALLEE's purity.
-    // Only relevant when declaredFunctionPurity's write level is InstanceInternal (write:None callers
-    // like @Pure/@Readonly never get an instance-boundary concept - only a local/not-local one).
+    // Not relevant for @Pure/@Readonly/None, none of which have an instance-boundary concept -
+    // only a local/not-local one.
 
     private val thisReceiver = function.dispatchReceiverParameter
     private fun isThis(expression: IrExpression?): Boolean =
@@ -331,10 +335,14 @@ class CheckFunctionPurityVisitor(
         widenRead(calledFunctionPurity.mutableStateRead)
         widenWrite(calledFunctionPurity.mutableStateWrite)
 
+        val hasInstanceBoundary = declaredFunctionPurity.mutableStateWrite == MutationLevel.InstanceInternal
+                || declaredFunctionPurity.mutableStateRead == MutationLevel.InstanceInternal
+
         val allowed = canCall(declaredFunctionPurity, calledFunctionPurity)
-                // @InternalStateMutation/@InternalStateAccess also trust calls based on WHO the
-                // receiver is, regardless of the callee's own declared purity - see isAllowedInternalStateReceiver
-                || (declaredFunctionPurity.mutableStateWrite == MutationLevel.InstanceInternal && isAllowedInternalStateReceiver(receiver))
+                // Any level with an instance boundary (@InternalStateMutation, @InternalStateAccess,
+                // @InternalStateReadonly) also trusts calls based on WHO the receiver is, regardless
+                // of the callee's own declared purity - see isAllowedInternalStateReceiver
+                || (hasInstanceBoundary && isAllowedInternalStateReceiver(receiver))
 
         if (!allowed) {
             reportUnacceptableFunctionCall(expression, calledFunction, calledFunctionPurity, receiver)
@@ -504,6 +512,7 @@ class CheckFunctionPurityVisitor(
         FunctionPurity.Readonly -> FunctionAnnotations.Readonly
         FunctionPurity.InternalStateMutation -> throw IllegalArgumentException("Parameters cannot be marked @InternalStateMutation")
         FunctionPurity.InternalStateAccess -> throw IllegalArgumentException("Parameters cannot be marked @InternalStateAccess")
+        FunctionPurity.InternalStateReadonly -> throw IllegalArgumentException("Parameters cannot be marked @InternalStateReadonly")
         FunctionPurity.None -> throw IllegalArgumentException("FunctionPurity.None has no corresponding FunctionAnnotations entry")
     }
 

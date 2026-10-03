@@ -14,6 +14,7 @@ import yairm210.purity.boilerplate.DebugLogger
 import yairm210.purity.validation.functionpurity.CheckFunctionPurityVisitor
 import yairm210.purity.validation.functionpurity.ExpectedFunctionPurityChecker
 import yairm210.purity.validation.functionpurity.FunctionPurity
+import yairm210.purity.validation.functionpurity.combineHarshest
 import yairm210.purity.validation.functionpurity.isStrictlyMoreRestrictiveThan
 
 /** 
@@ -74,23 +75,32 @@ internal class PurityElementTransformer(
 
         if (isSuppressed(declaration)) return super.visitSimpleFunction(declaration)
 
-        val functionDeclaredPurity = when {
-            ExpectedFunctionPurityChecker.isMarkedAsPure(declaration, purityConfig) -> FunctionPurity.Pure
-            ExpectedFunctionPurityChecker.isReadonly(declaration, purityConfig) -> FunctionPurity.Readonly
-            // @InternalStateMutation/@InternalStateAccess are not orthogonal to each other - they're
-            // two points on the same read/write restrictiveness lattice as Pure/Readonly (InternalStateAccess
-            // strictly more restrictive than InternalStateMutation) - so exactly one is picked here, same
-            // as Pure/Readonly above, rather than validating both independently (unlike @ReturnsNewInstance,
-            // which is an orthogonal, unrelated property and is validated independently below).
-            // A direct annotation on the function itself always wins over one inherited from its class,
+        // @InternalStateMutation/@InternalStateAccess are not orthogonal to each other, nor to
+        // @Pure/@Readonly - all four are points on the same read/write restrictiveness lattice
+        // If more than one applies at once, the function is treated as the
+        // harshest (most restrictive, per axis) of all of them - see combineHarshest.
+        val markedLevels = buildList {
+            if (ExpectedFunctionPurityChecker.isMarkedAsPure(declaration, purityConfig)) add(FunctionPurity.Pure)
+            if (ExpectedFunctionPurityChecker.isReadonly(declaration, purityConfig)) add(FunctionPurity.Readonly)
+
+            // @InternalStateMutation/@InternalStateAccess support class-level marking too - a direct
+            // annotation on the function itself always wins over ones merely inherited from its class,
             // so a function can deliberately relax (or further restrict) what its class declares.
-            declaration.parent !is IrClass -> FunctionPurity.None // local functions can't be isolated-checked for this - see InternalStateMutationValidator/InternalStateAccessValidator
-            declaration.hasAnnotation(Annotations.InternalStateAccess) -> FunctionPurity.InternalStateAccess
-            declaration.hasAnnotation(Annotations.InternalStateMutation) -> FunctionPurity.InternalStateMutation
-            FunctionAnnotations.InternalStateAccess.isExplicitlyMarked(declaration, purityConfig) -> FunctionPurity.InternalStateAccess
-            FunctionAnnotations.InternalStateMutation.isExplicitlyMarked(declaration, purityConfig) -> FunctionPurity.InternalStateMutation
-            else -> FunctionPurity.None
+            // Local functions can't be isolated-checked for this axis at all - see
+            // InternalStateMutationValidator/InternalStateAccessValidator.
+            if (declaration.parent is IrClass) {
+                val directAccess = declaration.hasAnnotation(Annotations.InternalStateAccess)
+                val directMutation = declaration.hasAnnotation(Annotations.InternalStateMutation)
+                if (directAccess || directMutation) {
+                    if (directAccess) add(FunctionPurity.InternalStateAccess)
+                    if (directMutation) add(FunctionPurity.InternalStateMutation)
+                } else {
+                    if (FunctionAnnotations.InternalStateAccess.isExplicitlyMarked(declaration, purityConfig)) add(FunctionPurity.InternalStateAccess)
+                    if (FunctionAnnotations.InternalStateMutation.isExplicitlyMarked(declaration, purityConfig)) add(FunctionPurity.InternalStateMutation)
+                }
+            }
         }
+        val functionDeclaredPurity = combineHarshest(markedLevels)
         val messageCollector = debugLogger.messageCollector
 
         val visitor = CheckFunctionPurityVisitor(declaration, functionDeclaredPurity, messageCollector, purityConfig)
@@ -131,6 +141,7 @@ internal class PurityElementTransformer(
                 FunctionPurity.Readonly -> "Function \"${declaration.name}\" can be marked with @Readonly to indicate it is readonly"
                 FunctionPurity.InternalStateAccess -> "Function \"${declaration.name}\" can be marked with @InternalStateAccess to indicate it only reads and writes its own instance-internal state"
                 FunctionPurity.InternalStateMutation -> "Function \"${declaration.name}\" can be marked with @InternalStateMutation to indicate it only writes its own instance-internal state"
+                FunctionPurity.InternalStateReadonly -> "Function \"${declaration.name}\" can be marked with both @Readonly and @InternalStateAccess to indicate it only reads its own instance-internal state and writes nothing"
                 else -> throw Exception("Unexpected function purity: $actualPurity")
             }
 

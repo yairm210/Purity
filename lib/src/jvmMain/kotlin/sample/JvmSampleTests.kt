@@ -737,6 +737,37 @@ fun testInternalStateAccessMethodsCanOnlyReadAndMutateOwnState() {
             other.x = 5 // mutating a DIFFERENT instance's state, even of the same class - NOT allowed
         }
     }
+
+    // @Readonly and @InternalStateAccess marked simultaneously are NOT orthogonal - they combine
+    // into the harshest of both axes (read: InstanceInternal, write: None)
+    @InternalStateAccess
+    class ReadonlyAndInternalStateAccess {
+        var x = 0
+
+        @Readonly
+        fun readX(): Int = x // reading own field - fine
+
+        @Readonly
+        @TestExpectCompileError
+        fun readXFromOther(other: ReadonlyAndInternalStateAccess): Int {
+            val value = other.x // restricted to instance-internal reads, same as plain @InternalStateAccess
+            return value
+        }
+    }
+
+    // Combined read:InstanceInternal/write:None is at least as restrictive as plain @Readonly
+    // (read:Any/write:None) on every axis - so it's callable directly from a @Readonly function,
+    // with no need for the caller to own the receiver
+    @Readonly
+    fun callableDirectlyFromReadonly(instance: ReadonlyAndInternalStateAccess): Int = instance.readX()
+
+    // It's NOT at least as restrictive as @Pure (read:None/write:None) - read:InstanceInternal is
+    // less strict than read:None - so from @Pure it can only be called on an owned/local instance
+    @Pure
+    fun callableFromPureOnlyWhenOwned(): Int {
+        val owned = ReadonlyAndInternalStateAccess()
+        return owned.readX()
+    }
 }
 
 fun testPlusEqualsSet(){
