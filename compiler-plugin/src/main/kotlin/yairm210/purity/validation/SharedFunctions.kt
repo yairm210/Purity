@@ -27,7 +27,7 @@ import org.jetbrains.kotlin.ir.types.getClass
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.name.FqName
 import yairm210.purity.PurityConfig
-import yairm210.purity.validation.internalstateaccess.wellknown.wellKnownInternalStateClasses
+import yairm210.purity.validation.internalstatemutation.wellknown.wellKnownInternalStateClasses
 
 /**
  * Functions and classes shared between two or more of the purity-checking usecases
@@ -140,7 +140,7 @@ internal fun isInternalStateClass(irClass: IrClass?, purityConfig: PurityConfig)
     if (irClass == null) return false
     if (irClass.hasAnnotation(Annotations.InternalStateAccess)) return true
     if (irClass.hasAnnotation(Annotations.InternalStateMutation)) return true
-    if (irClass.hasAnnotation(Annotations.InternalState)) return true // Deprecated - see InternalStateAccess
+    if (irClass.hasAnnotation(Annotations.InternalState)) return true // Deprecated - see InternalStateMutation
     val fullyQualifiedClassName = irClass.fqNameForIrSerialization.asString()
     if (fullyQualifiedClassName in wellKnownInternalStateClasses) return true
     if (fullyQualifiedClassName in purityConfig.wellKnownInternalStateClassesFromUser) return true

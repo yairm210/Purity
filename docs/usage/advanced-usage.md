@@ -25,7 +25,7 @@ Function purity is determined by its outer boundary - given the same call, retur
 
 One way many functions work is by building up a *mutable* object - a list, a map, etc - and returning it.
 
-Common classes we can recognize as "holding internal state" (classes/functions marked `@InternalStateAccess`, or well-known ones), and thus new instances can be recognized as "only available within the function".
+Common classes we can recognize as "holding internal state" (classes/functions marked `@InternalStateMutation`, or well-known ones - most collection classes like ArrayList/HashMap qualify, since their functions only ever mutate the receiver itself), and thus new instances can be recognized as "only available within the function".
 New classes can be added via `wellKnownInternalStateClasses` in the config.
 
 ### Restricting functions to their own internal state
@@ -50,9 +50,9 @@ class StrictCounter {
 }
 ```
 
-Both annotations can be placed on a class (applying to every function in it) or on an individual function. Their well-known-FQN equivalents in the config are `wellKnownInternalStateMutationFunctions` / `wellKnownInternalStateAccessFunctions` for functions, and `wellKnownInternalStateClasses` for classes marked as `@InternalStateAccess` - see [Handling external libraries](configuration.md#handling-external-libraries).
+Both annotations can be placed on a class (applying to every function in it) or on an individual function. Their well-known-FQN equivalents in the config are `wellKnownInternalStateMutationFunctions` / `wellKnownInternalStateAccessFunctions` for functions, and `wellKnownInternalStateClasses` for classes marked as `@InternalStateMutation` (most collection classes - ArrayList, HashMap, etc. - read an arbitrary external collection argument in functions like `addAll`, so they only qualify for `@InternalStateMutation`, not the stricter `@InternalStateAccess`) - see [Handling external libraries](configuration.md#handling-external-libraries).
 
-The deprecated `@InternalState` class annotation has been renamed to `@InternalStateAccess`.
+The deprecated `@InternalState` class annotation has been renamed to `@InternalStateMutation`.
 
 For non-constructors, we need to add the `@LocalState` attribute manually:
 

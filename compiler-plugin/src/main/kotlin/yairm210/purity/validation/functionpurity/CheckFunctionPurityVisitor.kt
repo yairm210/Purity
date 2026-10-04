@@ -22,7 +22,7 @@ import yairm210.purity.validation.isInternalStateClass
 import yairm210.purity.validation.isNewInstanceField
 import yairm210.purity.validation.isTrustedDefaultGetter
 import yairm210.purity.validation.isTrustedDefaultSetter
-import yairm210.purity.validation.internalstateaccess.wellknown.wellKnownInternalStateClasses
+import yairm210.purity.validation.internalstatemutation.wellknown.wellKnownInternalStateClasses
 import yairm210.purity.validation.representsAnnotationBearer
 import yairm210.purity.validation.returnsnewinstance.suggestReturnsNewInstanceFix
 import yairm210.purity.validation.suppressesPurity
@@ -339,21 +339,42 @@ class CheckFunctionPurityVisitor(
             else -> FunctionPurity.None
         }
 
+        // The called function may ALSO (independently of the above) be bound by its own
+        // @InternalStateMutation/@InternalStateAccess marking (directly, via well-known FQN, or via
+        // its class) - fold in whichever of those is stricter, same as a declaration combines its own
+        // multiple markings (see PurityElementTransformer/combineHarshest). This matters for e.g.
+        // calling another function of `this` same (marked) class: a shallow heuristic might only see
+        // it as @Readonly, missing that its class's marking makes it actually narrower.
+        // Only trusted when the RECEIVER is also owned (isAllowedInternalStateReceiver): the class's
+        // marking only guarantees the call stays within THAT INSTANCE's own bounds - it says nothing
+        // about whether *this* receiver instance is actually ours to touch in the first place (e.g.
+        // BadWhitewashedField's `inner` field is of a marked class, but assigned from a constructor
+        // parameter the external caller may still hold - mutating it is still mutating shared state,
+        // regardless of how well-behaved its class's own methods are).
+        val isOwnedReceiver = isAllowedInternalStateReceiver(receiver)
+        val calledFunctionInternalStateLevel = if (isOwnedReceiver && calledFunction.parent is IrClass) {
+            listOfNotNull(
+                FunctionPurity.InternalStateAccess.takeIf { FunctionAnnotations.InternalStateAccess.isExplicitlyMarked(calledFunction, purityConfig) },
+                FunctionPurity.InternalStateMutation.takeIf { FunctionAnnotations.InternalStateMutation.isExplicitlyMarked(calledFunction, purityConfig) },
+            )
+        } else emptyList()
+        val resolvedCalledFunctionPurity = combineHarshest(listOf(calledFunctionPurity) + calledFunctionInternalStateLevel)
 
-        widenRead(calledFunctionPurity.mutableStateRead)
-        widenWrite(calledFunctionPurity.mutableStateWrite)
+        widenRead(resolvedCalledFunctionPurity.mutableStateRead)
+        widenWrite(resolvedCalledFunctionPurity.mutableStateWrite)
 
-        val hasInstanceBoundary = declaredFunctionPurity.mutableStateWrite == MutationLevel.InstanceInternal
-                || declaredFunctionPurity.mutableStateRead == MutationLevel.InstanceInternal
+        // The receiver-ownership bypass only ever justifies the WRITE axis on its own: owning/being
+        // the receiver means whatever it mutates stays within MY ownership boundary, but says nothing
+        // about what the call might READ (e.g. a well-known @InternalStateMutation class's addAll(other)
+        // call still reads an arbitrary external `other` argument) - so read is NEVER bypassed by mere
+        // receiver ownership alone, only by resolvedCalledFunctionPurity's own (possibly class-marking-
+        // derived, and thus itself already ownership-gated above) read level.
+        val writeAllowed = resolvedCalledFunctionPurity.mutableStateWrite <= declaredFunctionPurity.mutableStateWrite ||
+                (declaredFunctionPurity.mutableStateWrite == MutationLevel.InstanceInternal && isOwnedReceiver)
+        val readAllowed = resolvedCalledFunctionPurity.mutableStateRead <= declaredFunctionPurity.mutableStateRead
 
-        val allowed = canCall(declaredFunctionPurity, calledFunctionPurity)
-                // Any level with an instance boundary (@InternalStateMutation, @InternalStateAccess,
-                // @InternalStateReadonly) also trusts calls based on WHO the receiver is, regardless
-                // of the callee's own declared purity - see isAllowedInternalStateReceiver
-                || (hasInstanceBoundary && isAllowedInternalStateReceiver(receiver))
-
-        if (!allowed) {
-            reportUnacceptableFunctionCall(expression, calledFunction, calledFunctionPurity, receiver)
+        if (!(writeAllowed && readAllowed)) {
+            reportUnacceptableFunctionCall(expression, calledFunction, resolvedCalledFunctionPurity, receiver)
         }
     }
 

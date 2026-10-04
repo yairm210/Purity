@@ -1,8 +1,8 @@
-package yairm210.purity.validation.internalstateaccess.wellknown
+package yairm210.purity.validation.internalstatemutation.wellknown
 
-/** Classes that hold state internally.
- * This means that if this function created that class, and it does not leak, it can call all functions on it and be considered pure
- */
+/** Classes that only mutate their internal state.
+ * All their functions are at least InternalStateMutation - individual functions may be more restrictive (e.g. InternalStateAccess, Readonly)
+ **/
 val wellKnownInternalStateClasses = setOf(
     "kotlin.collections.MutableList",
     "kotlin.collections.MutableSet",

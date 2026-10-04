@@ -807,6 +807,23 @@ fun testOverridingCannotRelaxInternalStateRestriction() {
     }
 }
 
+fun testWellKnownCollectionClassesAreInternalStateMutationNotAccess() {
+    // addAll/etc. read an arbitrary EXTERNAL collection passed as argument - fine under
+    // @InternalStateMutation (read:Any), but NOT under the stricter @InternalStateAccess (read:InstanceInternal)
+    @InternalStateMutation
+    class Good {
+        val items = ArrayList<Int>()
+        fun addAllFrom(other: List<Int>) { items.addAll(other) }
+    }
+
+    @InternalStateAccess
+    class Bad {
+        val items = ArrayList<Int>()
+        @TestExpectCompileError
+        fun addAllFrom(other: List<Int>) { items.addAll(other) }
+    }
+}
+
 fun testSubclassOfInternalStateClassIsTrustedAsOwnedInstance() {
     @InternalStateAccess
     open class Base {

@@ -9,7 +9,7 @@ plugins {
 }
 
 group = "io.github.yairm210"
-version = "1.11.1"
+version = "1.11.2"
 val isLocalPublish = gradle.startParameter.taskNames.any { it.contains("publishToMavenLocal") }
 val skipSigning = (findProperty("skipSigning") as String?)?.toBooleanStrictOrNull() == true
 

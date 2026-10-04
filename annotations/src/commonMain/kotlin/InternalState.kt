@@ -9,7 +9,7 @@ import kotlin.annotation.AnnotationTarget.CLASS
  * Validated on compilation
  */
 @Deprecated(
-    "Renamed to InternalStateAccess, which can also be placed on functions - not just classes",
-    ReplaceWith("InternalStateAccess")
+    "Renamed to InternalStateMutation, which can also be placed on functions - not just classes",
+    ReplaceWith("InternalStateMutation")
 )
 @Target(CLASS) public annotation class InternalState

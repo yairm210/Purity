@@ -17,7 +17,7 @@ import yairm210.purity.validation.functionpurity.wellknown.wellKnownPureFunction
 import yairm210.purity.validation.functionpurity.wellknown.wellKnownReadonlyClasses
 import yairm210.purity.validation.functionpurity.wellknown.wellKnownReadonlyFunctions
 import yairm210.purity.validation.internalstateaccess.validateInternalStateAccess
-import yairm210.purity.validation.internalstateaccess.wellknown.wellKnownInternalStateClasses
+import yairm210.purity.validation.internalstatemutation.wellknown.wellKnownInternalStateClasses
 import yairm210.purity.validation.internalstatemutation.validateInternalStateMutation
 import yairm210.purity.validation.returnsnewinstance.validateReturnsNewInstance
 import yairm210.purity.validation.returnsnewinstance.wellknown.wellKnownNewInstanceFunctions
@@ -49,7 +49,7 @@ enum class FunctionAnnotations(
     // "returns a new instance" as a whole) - defaults to "no class-level support" for those that don't need it
     private val wellKnownClasses: Set<String> = emptySet(),
     private val wellKnownClassesFromUser: (PurityConfig) -> Set<String> = { emptySet() },
-    // Deprecated alias also recognized for backward compatibility - e.g. @InternalState for InternalStateAccess
+    // Deprecated alias also recognized for backward compatibility - e.g. @InternalState for InternalStateMutation
     private val legacyFqName: FqName? = null,
 ) {
     Pure(
@@ -94,6 +94,9 @@ enum class FunctionAnnotations(
         Annotations.InternalStateMutation,
         emptySet(),
         { it.wellKnownInternalStateMutationFunctionsFromUser },
+        wellKnownInternalStateClasses,
+        { it.wellKnownInternalStateClassesFromUser },
+        legacyFqName = Annotations.InternalState,
     ) {
         override fun validate(function: IrFunction, purityConfig: PurityConfig, messageCollector: MessageCollector): List<String> =
             validateInternalStateMutation(function, purityConfig, messageCollector)
@@ -103,9 +106,6 @@ enum class FunctionAnnotations(
         Annotations.InternalStateAccess,
         emptySet(),
         { it.wellKnownInternalStateAccessFunctionsFromUser },
-        wellKnownInternalStateClasses,
-        { it.wellKnownInternalStateClassesFromUser },
-        legacyFqName = Annotations.InternalState,
     ) {
         override fun validate(function: IrFunction, purityConfig: PurityConfig, messageCollector: MessageCollector): List<String> =
             validateInternalStateAccess(function, purityConfig, messageCollector)
