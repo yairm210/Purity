@@ -20,6 +20,7 @@ import yairm210.purity.validation.functionpurity.wellknown.wellKnownPureClasses
 import yairm210.purity.validation.getLocationForExpression
 import yairm210.purity.validation.isInternalStateClass
 import yairm210.purity.validation.isNewInstanceField
+import yairm210.purity.validation.isTrustedDefaultGetter
 import yairm210.purity.validation.isTrustedDefaultSetter
 import yairm210.purity.validation.internalstateaccess.wellknown.wellKnownInternalStateClasses
 import yairm210.purity.validation.representsAnnotationBearer
@@ -324,6 +325,13 @@ class CheckFunctionPurityVisitor(
             // INTENTIONALLY NOT checking for @Pure or @Readonly annotations - see documentation
             calledFunction.name.asString() == "invoke"
                     && receiver?.type?.isFunction() == true
+                -> FunctionPurity.Pure
+
+            // A trivial default var-property getter is equivalent to a raw field read - no risk of
+            // any side effect regardless of whose instance it's called on, same as val-getters above.
+            // Only trusted this way under an instance-boundary read restriction (@InternalStateAccess/
+            // @InternalStateReadonly) - @Pure/@Readonly already have their own (stricter/looser) rules.
+            isTrustedDefaultGetter(calledFunction) && declaredFunctionPurity.mutableStateRead == MutationLevel.InstanceInternal
                 -> FunctionPurity.Pure
 
             ExpectedFunctionPurityChecker.isReadonly(calledFunction, purityConfig) -> FunctionPurity.Readonly

@@ -4,17 +4,9 @@ import kotlin.annotation.AnnotationTarget.CLASS
 import kotlin.annotation.AnnotationTarget.FUNCTION
 
 /**
- * Indicates that this class/function can mutate *only* state that it owns - lost upon destruction of the instance.
- *
- * On a class: every non-Pure/Readonly method of the class may only call functions that are
- * themselves Pure, Readonly, or called on `this` instance, and may only set vars/fields local to
- * the function or belonging to `this` instance - never external state, and never another instance's
- * state (even of the same class).
- *
- * On a function: that specific function follows the same contract, regardless of whether its
- * class is annotated.
- *
- * Can read ALL mutable state. Can write ONLY INSTANCE-INTERNAL mutable state.
+ * On a function: Can read ALL mutable state. Can write ONLY INSTANCE-INTERNAL mutable state.
+ * On a class: All functions of the class are at least this restrictive (may annotate functions for further restrictions).
+ * Example: BFS checker - reads the underlying graph, only updates internal mapping of total-cost-to-node.
  *
  * The equivalent of this for external functions is WellKnownInternalStateMutationFunctions -
  * see https://yairm210.github.io/Purity/usage/configuration/#handling-external-classes

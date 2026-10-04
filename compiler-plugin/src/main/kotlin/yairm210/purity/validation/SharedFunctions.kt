@@ -102,6 +102,15 @@ internal fun representsAnnotationBearer(irExpression: IrExpression, annotation: 
 internal fun isTrustedDefaultSetter(function: IrSimpleFunction): Boolean =
     function.isSetter && function.origin == IrDeclarationOrigin.DEFAULT_PROPERTY_ACCESSOR && function.modality == Modality.FINAL
 
+/** Is [function] a compiler-generated default property getter (no custom body - just `return field`),
+ * that is also `final`? Such a getter is exactly equivalent to a raw field read, with zero risk of any
+ * side effect - reading a value through it is no different, capability-wise, than already being handed
+ * that value directly. Used to trust reading a VAR property of ANY receiver (even another instance)
+ * under the instance-boundary read restriction (@InternalStateAccess), the same way val-getters are
+ * already unconditionally trusted as @Pure. Must be `final` for the same reason as [isTrustedDefaultSetter]. */
+internal fun isTrustedDefaultGetter(function: IrSimpleFunction): Boolean =
+    function.isGetter && function.origin == IrDeclarationOrigin.DEFAULT_PROPERTY_ACCESSOR && function.modality == Modality.FINAL
+
 /** `+=`/`*=` (and smart-casts/`!!` on a nullable) evaluate the receiver once into a compiler-generated
  * temp val to avoid re-evaluating a possibly-side-effecting expression, e.g. `equivalentOffer.amount +=
  * x` (where `equivalentOffer` is a nullable `@LocalState val`) lowers to roughly `val tmp = <not-null
@@ -121,8 +130,12 @@ internal fun unwrapCompoundAssignmentTemp(expression: IrExpression?): IrExpressi
 
 /** Is [irClass] one whose own behavior is fully self-contained - marked @InternalStateAccess or
  * @InternalStateMutation (directly, the deprecated legacy @InternalState, or via well-known FQN,
- * built-in or user config). Either annotation qualifies: @InternalStateAccess is strictly stricter
- * than @InternalStateMutation, so satisfying it satisfies both needs. */
+ * built-in or user config), OR a subclass/implementation of one that is. Either annotation qualifies:
+ * @InternalStateAccess is strictly stricter than @InternalStateMutation, so satisfying it satisfies
+ * both needs. The superclass/interface walk mirrors FunctionAnnotations.isExplicitlyMarked's own
+ * override-chain check, which already holds a subclass's overriding functions to the marked ancestor's
+ * contract - so trusting instances of that subclass the same way here isn't a new loophole, it just
+ * lets such a subclass actually benefit from the restriction it's already held to. */
 internal fun isInternalStateClass(irClass: IrClass?, purityConfig: PurityConfig): Boolean {
     if (irClass == null) return false
     if (irClass.hasAnnotation(Annotations.InternalStateAccess)) return true
@@ -131,6 +144,7 @@ internal fun isInternalStateClass(irClass: IrClass?, purityConfig: PurityConfig)
     val fullyQualifiedClassName = irClass.fqNameForIrSerialization.asString()
     if (fullyQualifiedClassName in wellKnownInternalStateClasses) return true
     if (fullyQualifiedClassName in purityConfig.wellKnownInternalStateClassesFromUser) return true
+    if (irClass.superTypes.any { isInternalStateClass(it.getClass(), purityConfig) }) return true
     return false
 }
 

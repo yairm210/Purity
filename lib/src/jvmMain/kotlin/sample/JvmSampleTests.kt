@@ -696,12 +696,23 @@ fun testInternalStateAccessMethodsCanOnlyReadAndMutateOwnState() {
     }
 
     @InternalStateAccess
-    class BadCrossInstanceRead {
+    class CrossInstanceReadViaDefaultGetter {
         var x = 0
+        // Reading another instance's property through a trivial default getter is fine - it's
+        // exactly equivalent to a raw field read (just a value copy, no aliasing/capability leak),
+        // unlike setting it (see BadCrossInstanceSet below) or calling an arbitrary method on it
+        fun readXFromOther(other: CrossInstanceReadViaDefaultGetter): Int {
+            val value = other.x
+            return value
+        }
+    }
+
+    @InternalStateAccess
+    class BadCrossInstanceCustomGetterRead {
+        var x = 0
+            get() = field // a custom (non-default) getter body - NOT trusted like a trivial one
         @TestExpectCompileError
-        fun readXFromOther(other: BadCrossInstanceRead): Int {
-            // Not a single-statement return (see readExternalVar above) - reading a DIFFERENT
-            // instance's state, even of the same class, is NOT allowed
+        fun readXFromOther(other: BadCrossInstanceCustomGetterRead): Int {
             val value = other.x
             return value
         }
@@ -747,9 +758,8 @@ fun testInternalStateAccessMethodsCanOnlyReadAndMutateOwnState() {
         fun readX(): Int = x // reading own field - fine
 
         @Readonly
-        @TestExpectCompileError
         fun readXFromOther(other: ReadonlyAndInternalStateAccess): Int {
-            val value = other.x // restricted to instance-internal reads, same as plain @InternalStateAccess
+            val value = other.x // trivial default getter on another instance - fine, same as plain @InternalStateAccess
             return value
         }
     }
@@ -794,6 +804,24 @@ fun testOverridingCannotRelaxInternalStateRestriction() {
         override fun doThing(): Int {
             return x // reading own field - fine under either level
         }
+    }
+}
+
+fun testSubclassOfInternalStateClassIsTrustedAsOwnedInstance() {
+    @InternalStateAccess
+    open class Base {
+        var x = 0
+        fun assignX(value: Int) { x = value }
+    }
+
+    // Not itself marked - but a subclass of a marked class still benefits from its ancestor's
+    // guarantee (the same way its own overriding functions would be held to that guarantee)
+    class Sub : Base()
+
+    @Pure
+    fun pureCallerOwningSubclassInstance() {
+        val owned = Sub() // freshly constructed, unaliased
+        owned.assignX(5) // trusted, since Sub is-a Base, which is @InternalStateAccess
     }
 }
 
